@@ -319,8 +319,21 @@ export default function Home() {
   const totalSlides = MILESTONES.length;
   const activeMilestone = MILESTONES[currentSlide];
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % totalSlides);
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
+  // Dirección de la animación: 1 = siguiente (entra desde la derecha), -1 = anterior
+  const [slideDir, setSlideDir] = useState<1 | -1>(1);
+  const goToSlide = (idx: number) => {
+    if (idx === currentSlide) return;
+    setSlideDir(idx > currentSlide ? 1 : -1);
+    setCurrentSlide(idx);
+  };
+  const nextSlide = () => {
+    setSlideDir(1);
+    setCurrentSlide((prev) => (prev + 1) % totalSlides);
+  };
+  const prevSlide = () => {
+    setSlideDir(-1);
+    setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
+  };
 
   // Deslizar con el dedo en el carrusel (teléfonos)
   const touchStartX = useRef<number | null>(null);
@@ -364,6 +377,35 @@ export default function Home() {
           display: block;
           opacity: 0.85;
           animation: floatFlame 1.8s infinite ease-out;
+        }
+
+        /* Carrusel: fundido cruzado de imágenes + texto que entra deslizándose */
+        .carousel-img {
+          transition: opacity 700ms cubic-bezier(0.4, 0, 0.2, 1), transform 1100ms cubic-bezier(0.22, 1, 0.36, 1);
+          will-change: opacity, transform;
+        }
+
+        @keyframes slideTextNext {
+          from { opacity: 0; transform: translateX(28px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideTextPrev {
+          from { opacity: 0; transform: translateX(-28px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .slide-text-next > *,
+        .slide-text-prev > * {
+          animation: slideTextNext 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .slide-text-prev > * { animation-name: slideTextPrev; }
+        .slide-text-next > *:nth-child(2), .slide-text-prev > *:nth-child(2) { animation-delay: 60ms; }
+        .slide-text-next > *:nth-child(3), .slide-text-prev > *:nth-child(3) { animation-delay: 120ms; }
+        .slide-text-next > *:nth-child(4), .slide-text-prev > *:nth-child(4) { animation-delay: 180ms; }
+        .slide-text-next > *:nth-child(5), .slide-text-prev > *:nth-child(5) { animation-delay: 240ms; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .carousel-img { transition: opacity 200ms linear; transform: none !important; }
+          .slide-text-next > *, .slide-text-prev > * { animation: none; }
         }
 
         @keyframes lightSweep {
@@ -668,7 +710,7 @@ export default function Home() {
                 {MILESTONES.map((item, idx) => (
                   <button
                     key={item.id}
-                    onClick={() => setCurrentSlide(idx)}
+                    onClick={() => goToSlide(idx)}
                     className={`whitespace-nowrap px-3 sm:px-4 py-2 text-xs font-semibold rounded-lg transition-all duration-300 cursor-pointer ${
                       currentSlide === idx
                         ? "bg-blue-600 text-white shadow-sm font-bold"
@@ -704,19 +746,35 @@ export default function Home() {
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            <div key={activeMilestone.id} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               
               <div className="lg:col-span-6 w-full">
+                {/* Todas las imágenes apiladas y precargadas: fundido cruzado sin parpadeo */}
                 <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
-                  <img 
-                    src={activeMilestone.imageSrc}
-                    alt={activeMilestone.imageAlt} 
-                    className="w-full h-full object-cover transition-all duration-500" 
-                  />
+                  {MILESTONES.map((item, idx) => {
+                    const isActive = idx === currentSlide;
+                    return (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={item.id}
+                        src={item.imageSrc}
+                        alt={isActive ? item.imageAlt : ""}
+                        aria-hidden={!isActive}
+                        loading="eager"
+                        draggable={false}
+                        className={`carousel-img absolute inset-0 w-full h-full object-cover ${
+                          isActive ? "opacity-100 scale-100 z-10" : "opacity-0 scale-[1.06] z-0"
+                        }`}
+                      />
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="lg:col-span-6 space-y-4">
+              <div
+                key={activeMilestone.id}
+                className={`lg:col-span-6 space-y-4 ${slideDir === 1 ? "slide-text-next" : "slide-text-prev"}`}
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
                     {activeMilestone.badge}
