@@ -317,23 +317,10 @@ export default function Home() {
   };
 
   const totalSlides = MILESTONES.length;
-  const activeMilestone = MILESTONES[currentSlide];
 
-  // Dirección de la animación: 1 = siguiente (entra desde la derecha), -1 = anterior
-  const [slideDir, setSlideDir] = useState<1 | -1>(1);
-  const goToSlide = (idx: number) => {
-    if (idx === currentSlide) return;
-    setSlideDir(idx > currentSlide ? 1 : -1);
-    setCurrentSlide(idx);
-  };
-  const nextSlide = () => {
-    setSlideDir(1);
-    setCurrentSlide((prev) => (prev + 1) % totalSlides);
-  };
-  const prevSlide = () => {
-    setSlideDir(-1);
-    setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
-  };
+  const goToSlide = (idx: number) => setCurrentSlide(idx);
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % totalSlides);
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
 
   // Deslizar con el dedo en el carrusel (teléfonos)
   const touchStartX = useRef<number | null>(null);
@@ -379,33 +366,13 @@ export default function Home() {
           animation: floatFlame 1.8s infinite ease-out;
         }
 
-        /* Carrusel: fundido cruzado de imágenes + texto que entra deslizándose */
-        .carousel-img {
-          transition: opacity 700ms cubic-bezier(0.4, 0, 0.2, 1), transform 1100ms cubic-bezier(0.22, 1, 0.36, 1);
-          will-change: opacity, transform;
+        /* Carrusel: deslizamiento suave hacia la siguiente foto */
+        .carousel-track {
+          transition: transform 800ms cubic-bezier(0.65, 0, 0.35, 1);
+          will-change: transform;
         }
-
-        @keyframes slideTextNext {
-          from { opacity: 0; transform: translateX(28px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes slideTextPrev {
-          from { opacity: 0; transform: translateX(-28px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-        .slide-text-next > *,
-        .slide-text-prev > * {
-          animation: slideTextNext 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
-        .slide-text-prev > * { animation-name: slideTextPrev; }
-        .slide-text-next > *:nth-child(2), .slide-text-prev > *:nth-child(2) { animation-delay: 60ms; }
-        .slide-text-next > *:nth-child(3), .slide-text-prev > *:nth-child(3) { animation-delay: 120ms; }
-        .slide-text-next > *:nth-child(4), .slide-text-prev > *:nth-child(4) { animation-delay: 180ms; }
-        .slide-text-next > *:nth-child(5), .slide-text-prev > *:nth-child(5) { animation-delay: 240ms; }
-
         @media (prefers-reduced-motion: reduce) {
-          .carousel-img { transition: opacity 200ms linear; transform: none !important; }
-          .slide-text-next > *, .slide-text-prev > * { animation: none; }
+          .carousel-track { transition: none; }
         }
 
         @keyframes lightSweep {
@@ -746,65 +713,68 @@ export default function Home() {
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              
-              <div className="lg:col-span-6 w-full">
-                {/* Todas las imágenes apiladas y precargadas: fundido cruzado sin parpadeo */}
-                <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
-                  {MILESTONES.map((item, idx) => {
-                    const isActive = idx === currentSlide;
-                    return (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={item.id}
-                        src={item.imageSrc}
-                        alt={isActive ? item.imageAlt : ""}
-                        aria-hidden={!isActive}
-                        loading="eager"
-                        draggable={false}
-                        className={`carousel-img absolute inset-0 w-full h-full object-cover ${
-                          isActive ? "opacity-100 scale-100 z-10" : "opacity-0 scale-[1.06] z-0"
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
+            {/* Carril deslizante: cada slide (foto + texto) se desliza hacia el lado */}
+            <div className="overflow-hidden">
               <div
-                key={activeMilestone.id}
-                className={`lg:col-span-6 space-y-4 ${slideDir === 1 ? "slide-text-next" : "slide-text-prev"}`}
+                className="carousel-track flex"
+                style={{ transform: `translateX(-${currentSlide * 100}%)` }}
               >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
-                    {activeMilestone.badge}
-                  </span>
-                  <span className="text-xs text-slate-500 font-medium">
-                    {activeMilestone.subBadge}
-                  </span>
-                </div>
+                {MILESTONES.map((item, idx) => {
+                  const isActive = idx === currentSlide;
+                  return (
+                    <div
+                      key={item.id}
+                      aria-hidden={!isActive}
+                      inert={!isActive}
+                      className="w-full shrink-0 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
+                    >
+                      <div className="lg:col-span-6 w-full">
+                        <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={item.imageSrc}
+                            alt={item.imageAlt}
+                            loading="eager"
+                            draggable={false}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </div>
 
-                <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
-                  {activeMilestone.title}
-                </h3>
+                      <div className="lg:col-span-6 space-y-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
+                            {item.badge}
+                          </span>
+                          <span className="text-xs text-slate-500 font-medium">
+                            {item.subBadge}
+                          </span>
+                        </div>
 
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  {activeMilestone.description}
-                </p>
+                        <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
+                          {item.title}
+                        </h3>
 
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 text-xs text-slate-600">
-                  {activeMilestone.roleBox}
-                </div>
+                        <p className="text-slate-600 text-sm leading-relaxed">
+                          {item.description}
+                        </p>
 
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {activeMilestone.tags.map((tag) => (
-                    <span key={tag} className="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 border border-blue-100">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 text-xs text-slate-600">
+                          {item.roleBox}
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {item.tags.map((tag) => (
+                            <span key={tag} className="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 border border-blue-100">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-
             </div>
           </div>
         </section>
