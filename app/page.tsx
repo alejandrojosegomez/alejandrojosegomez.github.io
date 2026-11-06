@@ -217,8 +217,10 @@ export default function Home() {
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    const honeypot = String(new FormData(e.currentTarget).get("website") ?? "");
 
     const missingFields: string[] = [];
     if (!formData.name.trim()) missingFields.push("Your Name");
@@ -254,10 +256,36 @@ export default function Home() {
     setValidationError({ show: false, heading: "", message: "" });
     setIsSubmitting(true);
 
-    const paddedDec = `#${String(dispatchSeq).padStart(5, "0")}`;
-    const hexVal = `0x${dispatchSeq.toString(16).toUpperCase().padStart(4, "0")}`;
-    const binVal = `0b${dispatchSeq.toString(2).padStart(8, "0")}`;
-    const rowIdx = `Cataloged at Row #${String(dispatchSeq + 1).padStart(5, "0")}`;
+    // Envía el mensaje al servidor, que lo guarda en Google Drive y avisa por correo
+    let realSeq = dispatchSeq;
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, website: honeypot }),
+      });
+      const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; id?: string | null } | null;
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Your message could not be delivered. Please try again.");
+      }
+      // Usa el número real del mensaje en el Message Log (ej. "#00007")
+      const parsed = parseInt(String(data.id ?? "").replace(/\D/g, ""), 10);
+      if (Number.isFinite(parsed)) realSeq = parsed;
+    } catch (err) {
+      setIsSubmitting(false);
+      setValidationError({
+        show: true,
+        heading: "Message not sent:",
+        message: `${err instanceof Error ? err.message : "Please try again."} You can also email aleglacayo03@gmail.com directly.`,
+      });
+      return;
+    }
+
+    const paddedDec = `#${String(realSeq).padStart(5, "0")}`;
+    const hexVal = `0x${realSeq.toString(16).toUpperCase().padStart(4, "0")}`;
+    const binVal = `0b${realSeq.toString(2).padStart(8, "0")}`;
+    const rowIdx = `Cataloged at Row #${String(realSeq + 1).padStart(5, "0")}`;
+    setDispatchSeq(realSeq);
     const now = new Date();
     const timeStr = `${now.toLocaleDateString()} at ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
 
@@ -271,20 +299,8 @@ export default function Home() {
       rowIndex: rowIdx,
     });
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccessView(true);
-
-      const mailtoUrl = `mailto:aleglacayo03@gmail.com?subject=${encodeURIComponent(
-        formData.title
-      )}&body=${encodeURIComponent(`From: ${formData.name} (${formData.email})\n\nMessage:\n${formData.message}`)}`;
-      
-      try {
-        window.open(mailtoUrl, "_blank", "noopener,noreferrer");
-      } catch (err) {
-        window.location.href = mailtoUrl;
-      }
-    }, 900);
+    setIsSubmitting(false);
+    setIsSuccessView(true);
   };
 
   const handleSendAnother = () => {
@@ -963,6 +979,11 @@ export default function Home() {
             {!isSuccessView ? (
               <div className="p-4 sm:p-5 bg-white rounded-b-[24px]">
                 <form onSubmit={handleFormSubmit} className="space-y-3" noValidate>
+                  {/* Campo trampa anti-spam (invisible para personas) */}
+                  <div aria-hidden="true" className="absolute -left-[9999px] w-px h-px overflow-hidden">
+                    <label htmlFor="website">Website</label>
+                    <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" defaultValue="" />
+                  </div>
                   
                   {/* Fila Nombre y Correo */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1156,11 +1177,11 @@ export default function Home() {
                 <div className="flex flex-wrap items-center justify-center gap-1.5 mb-3">
                   <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-semibold shadow-xs">
                     <svg className="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"></path></svg>
-                    <span>Google Drive: Saved &amp; Encrypted</span>
+                    <span>Saved to Alejandro&apos;s Google Drive</span>
                   </div>
                   <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-semibold shadow-xs">
                     <svg className="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"></path></svg>
-                    <span>Email Forwarded to aleglacayo03@gmail.com</span>
+                    <span>Alejandro notified by email</span>
                   </div>
                 </div>
 
