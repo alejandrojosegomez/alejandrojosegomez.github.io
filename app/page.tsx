@@ -306,6 +306,20 @@ export default function Home() {
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % totalSlides);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
 
+  // Deslizar con el dedo en el carrusel (teléfonos)
+  const touchStartX = useRef<number | null>(null);
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(deltaX) < 50) return;
+    if (deltaX < 0) nextSlide();
+    else prevSlide();
+  };
+
   return (
     <div className="bg-[#f8f9ff] text-slate-800 font-sans antialiased selection:bg-blue-600 selection:text-white min-h-screen">
       
@@ -362,13 +376,13 @@ export default function Home() {
 
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-2">
+
           <a
             href="https://github.com/alejandrojosegomez"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 group"
+            className="flex items-center gap-2.5 sm:gap-3 group min-w-0"
             title="Ir a mi Perfil de GitHub (alejandrojosegomez)"
           >
             <div className="w-10 h-10 rounded-xl overflow-hidden border border-slate-200/80 shadow-sm group-hover:scale-105 group-hover:border-blue-500 transition-all bg-slate-100 flex-shrink-0">
@@ -378,12 +392,12 @@ export default function Home() {
                 className="w-full h-full object-cover"
               />
             </div>
-            <div>
-              <div className="font-bold text-slate-900 tracking-tight flex items-center gap-1.5 group-hover:text-blue-700 transition">
+            <div className="min-w-0">
+              <div className="font-bold text-sm sm:text-base text-slate-900 tracking-tight flex items-center gap-1.5 group-hover:text-blue-700 transition whitespace-nowrap">
                 Alejandro Gómez
                 <span className="inline-block w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
               </div>
-              <div className="text-xs text-slate-500 font-medium tracking-wide uppercase">Information Systems B.S.</div>
+              <div className="text-[10px] sm:text-xs text-slate-500 font-medium tracking-wide uppercase truncate">Information Systems B.S.</div>
             </div>
           </a>
 
@@ -418,29 +432,53 @@ export default function Home() {
             })}
           </nav>
 
-          <div className="flex items-center gap-3">
-            <a href="https://linkedin.com/in/alejandro-josegomez" target="_blank" rel="noopener noreferrer" className="p-2.5 text-slate-600 hover:text-blue-700 hover:bg-slate-100 rounded-lg transition" title="LinkedIn">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <a href="https://linkedin.com/in/alejandro-josegomez" target="_blank" rel="noopener noreferrer" className="p-2 sm:p-2.5 text-slate-600 hover:text-blue-700 hover:bg-slate-100 rounded-lg transition" title="LinkedIn" aria-label="LinkedIn">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
             </a>
-            <a href="/CV_Alejandro_Gomez.pdf" target="_blank" className="flex items-center gap-2 px-4 py-2 border border-blue-200 text-blue-800 bg-blue-50/50 hover:bg-blue-100/60 font-semibold text-xs rounded-lg transition shadow-sm">
+            <a href="/CV_Alejandro_Gomez.pdf" target="_blank" aria-label="View CV" className="flex items-center gap-2 p-2.5 sm:px-4 sm:py-2 border border-blue-200 text-blue-800 bg-blue-50/50 hover:bg-blue-100/60 font-semibold text-xs rounded-lg transition shadow-sm">
               <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              <span>View CV</span>
+              <span className="hidden sm:inline">View CV</span>
             </a>
             <button
               onClick={openContactModal}
-              className="flex items-center gap-2 px-4 py-2 bg-[#3443c7] hover:bg-[#2b36a8] text-white font-semibold text-xs rounded-lg shadow-sm transition cursor-pointer active:scale-95"
+              aria-label="Contact Me"
+              className="flex items-center gap-2 p-2.5 sm:px-4 sm:py-2 bg-[#3443c7] hover:bg-[#2b36a8] text-white font-semibold text-xs rounded-lg shadow-sm transition cursor-pointer active:scale-95"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-              <span>Contact Me</span>
+              <span className="hidden sm:inline">Contact Me</span>
             </button>
           </div>
         </div>
+
+        {/* Navegación móvil (solo teléfonos y tablets) */}
+        <nav className="md:hidden border-t border-slate-200/70 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex items-center gap-1.5 px-4 py-2 w-max">
+            {NAV_ITEMS.map((item) => {
+              const isActive = activeSection === item.id;
+              return (
+                <a
+                  key={item.id}
+                  href={`#${item.id}`}
+                  onClick={() => handleNavClick(item.id)}
+                  className={`whitespace-nowrap px-3.5 py-1.5 text-xs rounded-full border transition-colors active:scale-95 ${
+                    isActive
+                      ? "bg-blue-600 border-blue-600 text-white font-bold shadow-sm"
+                      : "bg-white border-slate-200 text-slate-700 font-semibold"
+                  }`}
+                >
+                  {item.label}
+                </a>
+              );
+            })}
+          </div>
+        </nav>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-12 space-y-24">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-16 sm:space-y-24">
 
         {/* HERO SECTION */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pt-4">
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center pt-2 sm:pt-4">
           <div className="lg:col-span-7 space-y-6">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-semibold">
               <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></span>
@@ -451,8 +489,8 @@ export default function Home() {
               <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
                 Alejandro Gómez
               </h1>
-              <p className="text-xl sm:text-2xl font-semibold text-blue-700 mt-2">
-                Information Systems B.S. <span className="text-slate-300 font-light mx-2">|</span> <span className="text-slate-700">Junior Full-Stack Developer &amp; Systems Analyst</span>
+              <p className="text-lg sm:text-2xl font-semibold text-blue-700 mt-2">
+                Information Systems B.S. <span className="hidden sm:inline text-slate-300 font-light mx-2">|</span> <span className="block sm:inline text-slate-700">Junior Full-Stack Developer &amp; Systems Analyst</span>
               </p>
             </div>
 
@@ -466,7 +504,7 @@ export default function Home() {
                 <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center group-hover:bg-blue-700 group-hover:text-white transition">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                 </div>
-                <div className="truncate">
+                <div className="truncate min-w-0">
                   <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Email</span>
                   <span className="font-semibold text-xs sm:text-sm text-slate-800">aleglacayo03@gmail.com</span>
                 </div>
@@ -486,7 +524,7 @@ export default function Home() {
                 <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center group-hover:bg-blue-700 group-hover:text-white transition">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
                 </div>
-                <div className="truncate">
+                <div className="truncate min-w-0">
                   <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">LinkedIn Profile</span>
                   <span className="font-semibold text-xs sm:text-sm text-blue-800">linkedin.com/in/alejandro-josegomez</span>
                 </div>
@@ -509,7 +547,7 @@ export default function Home() {
 
               <div className="absolute -inset-1.5 bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 rounded-3xl opacity-0 group-hover:opacity-100 blur-xl transition duration-700 group-hover:duration-200"></div>
 
-              <div className="relative w-72 sm:w-80 h-[26rem] rounded-2xl overflow-hidden border-4 border-white shadow-xl bg-slate-100">
+              <div className="relative w-64 sm:w-80 h-[22rem] sm:h-[26rem] rounded-2xl overflow-hidden border-4 border-white shadow-xl bg-slate-100">
                 <img 
                   src="/assets/alejandro-portrait.jpg" 
                   alt="Alejandro Gómez Portrait" 
@@ -521,22 +559,22 @@ export default function Home() {
         </section>
 
         {/* WORK EXPERIENCE SECTION */}
-        <section id="experience" className="scroll-mt-28 space-y-6 pt-4">
+        <section id="experience" className="scroll-mt-36 md:scroll-mt-28 space-y-6 pt-4">
           <div>
             <div className="text-[11px] font-bold tracking-widest text-blue-700 uppercase flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-blue-600"></span>
               Career Progression &amp; Verified Records
             </div>
-            <h2 className="text-3xl font-bold text-slate-900 mt-1">Work Experience</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">Work Experience</h2>
           </div>
 
           <div className="space-y-4">
             {/* Experience Card 1 */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-7 shadow-sm hover:shadow-md transition">
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-7 shadow-sm hover:shadow-md transition">
               <div className="flex flex-wrap items-start justify-between gap-4 pb-3 border-b border-slate-100">
                 <div>
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-xl font-bold text-slate-900">Junior Full-Stack Developer</h3>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">Junior Full-Stack Developer</h3>
                     <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">Current Role</span>
                   </div>
                   <p className="text-sm font-semibold text-slate-600 mt-0.5">Okhten Group LLC <span className="text-slate-400 font-normal">&bull; Miami, FL (Hybrid)</span></p>
@@ -563,11 +601,11 @@ export default function Home() {
             </div>
 
             {/* Experience Card 2 */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-7 shadow-sm hover:shadow-md transition">
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-7 shadow-sm hover:shadow-md transition">
               <div className="flex flex-wrap items-start justify-between gap-4 pb-3 border-b border-slate-100">
                 <div>
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-xl font-bold text-slate-900">Programmer Analyst Intern</h3>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">Programmer Analyst Intern</h3>
                     <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">International Work Experience</span>
                   </div>
                   <p className="text-sm font-semibold text-slate-600 mt-0.5">Grupo LAFISE <span className="text-slate-400 font-normal">&bull; Managua, Nicaragua</span></p>
@@ -598,24 +636,24 @@ export default function Home() {
         </section>
 
         {/* MILESTONES & LEADERSHIP CAROUSEL SECTION */}
-        <section id="competitions" className="scroll-mt-28 space-y-6 pt-4">
+        <section id="competitions" className="scroll-mt-36 md:scroll-mt-28 space-y-6 pt-4">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <div className="text-[11px] font-bold tracking-widest text-blue-700 uppercase flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-blue-600"></span>
                 MILESTONES &amp; FLORIDA TECH LEADERSHIP
               </div>
-              <h2 className="text-3xl font-bold text-slate-900 mt-1">Collegiate Competitions &amp; Leadership</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">Collegiate Competitions &amp; Leadership</h2>
             </div>
 
             {/* Carousel Controls */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <div className="flex flex-1 sm:flex-none items-center bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {MILESTONES.map((item, idx) => (
                   <button
                     key={item.id}
                     onClick={() => setCurrentSlide(idx)}
-                    className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all duration-300 cursor-pointer ${
+                    className={`whitespace-nowrap px-3 sm:px-4 py-2 text-xs font-semibold rounded-lg transition-all duration-300 cursor-pointer ${
                       currentSlide === idx
                         ? "bg-blue-600 text-white shadow-sm font-bold"
                         : "text-slate-600 hover:text-slate-900"
@@ -626,7 +664,7 @@ export default function Home() {
                 ))}
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={prevSlide}
                   className="p-2 bg-white border border-slate-200 hover:border-blue-500 rounded-lg text-slate-700 hover:text-blue-800 shadow-sm transition cursor-pointer"
@@ -646,7 +684,10 @@ export default function Home() {
           </div>
 
           {/* Locked Card Container */}
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-8 shadow-sm overflow-hidden touch-pan-y"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
             <div key={activeMilestone.id} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               
               <div className="lg:col-span-6 w-full">
@@ -660,7 +701,7 @@ export default function Home() {
               </div>
 
               <div className="lg:col-span-6 space-y-4">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
                     {activeMilestone.badge}
                   </span>
@@ -669,7 +710,7 @@ export default function Home() {
                   </span>
                 </div>
 
-                <h3 className="text-2xl font-bold text-slate-900">
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
                   {activeMilestone.title}
                 </h3>
 
@@ -695,17 +736,17 @@ export default function Home() {
         </section>
 
         {/* CERTIFICATIONS SECTION */}
-        <section id="certifications" className="scroll-mt-28 space-y-6 pt-4">
+        <section id="certifications" className="scroll-mt-36 md:scroll-mt-28 space-y-6 pt-4">
           <div>
             <div className="text-[11px] font-bold tracking-widest text-blue-700 uppercase flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-blue-600"></span>
               Verified Credentials
             </div>
-            <h2 className="text-3xl font-bold text-slate-900 mt-1">Licenses &amp; Certifications</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">Licenses &amp; Certifications</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
+            <div className="group bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
               <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-700 group-hover:text-white transition duration-300">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
               </div>
@@ -720,7 +761,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
+            <div className="group bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
               <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-700 group-hover:text-white transition duration-300">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
               </div>
@@ -735,7 +776,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
+            <div className="group bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
               <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-700 group-hover:text-white transition duration-300">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7c0 1.657-3.582 3-8 3S4 8.657 4 7m16 0c0-1.657-3.582-3-8-3S4 5.343 4 7m16 0v5c0 1.657-3.582 3-8 3s-8-1.343-8-3V7m16 5v5c0 1.657-3.582 3-8 3s-8-1.343-8-3v-5" />
@@ -755,17 +796,17 @@ export default function Home() {
         </section>
 
         {/* SKILLS MATRIX SECTION */}
-        <section id="skills" className="scroll-mt-28 space-y-6 pt-4">
+        <section id="skills" className="scroll-mt-36 md:scroll-mt-28 space-y-6 pt-4">
           <div>
             <div className="text-[11px] font-bold tracking-widest text-blue-700 uppercase flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-blue-600"></span>
               Technical Competence
             </div>
-            <h2 className="text-3xl font-bold text-slate-900 mt-1">Verified Skills Matrix</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">Verified Skills Matrix</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
+            <div className="group bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
               <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
                 <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center group-hover:bg-blue-700 group-hover:text-white transition">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
@@ -785,7 +826,7 @@ export default function Home() {
               </ul>
             </div>
 
-            <div className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
+            <div className="group bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
               <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
                 <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center group-hover:bg-blue-700 group-hover:text-white transition">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 022 2z" /></svg>
@@ -805,7 +846,7 @@ export default function Home() {
               </ul>
             </div>
 
-            <div className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
+            <div className="group bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:shadow-[0_0_35px_rgba(37,99,235,0.25)] hover:border-blue-500 transition-all duration-300">
               <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
                 <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center group-hover:bg-blue-700 group-hover:text-white transition">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
@@ -828,7 +869,7 @@ export default function Home() {
         </section>
 
         {/* BOTTOM CTA BANNER */}
-        <section id="contact" className="relative rounded-3xl bg-slate-950 text-white p-10 md:p-14 overflow-hidden shadow-2xl border border-blue-900/50">
+        <section id="contact" className="relative rounded-3xl bg-slate-950 text-white p-6 sm:p-10 md:p-14 overflow-hidden shadow-2xl border border-blue-900/50">
           <div className="absolute top-0 left-0 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-sky-600/15 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -840,7 +881,7 @@ export default function Home() {
                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
                 <span>Available for Hire &amp; Collaboration</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
+              <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
                 Seeking a developer with rigorous systems training?
               </h2>
               <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl">
@@ -866,12 +907,12 @@ export default function Home() {
       </main>
 
       {/* FOOTER */}
-      <footer className="mt-20 border-t border-slate-200/80 bg-white py-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <footer className="mt-16 sm:mt-20 border-t border-slate-200/80 bg-white py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col lg:flex-row items-center justify-between gap-4 text-xs text-slate-500 text-center lg:text-left">
           <div>
             <strong className="text-slate-800 font-semibold">Alejandro Gómez</strong> &bull; Information Systems B.S., Florida Institute of Technology
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             <a href="#experience" className="hover:text-blue-800 transition">Experience</a>
             <a href="#competitions" className="hover:text-blue-800 transition">Leadership</a>
             <a href="#certifications" className="hover:text-blue-800 transition">Certifications</a>
@@ -940,7 +981,7 @@ export default function Home() {
                         value={formData.name}
                         onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                         placeholder="e.g. Alejandro Gomez"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-800 placeholder:text-slate-400 font-medium text-xs sm:text-sm focus:bg-white focus:border-[#3443c7] focus:ring-2 focus:ring-[#3443c7]/20 transition-all outline-none"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-800 placeholder:text-slate-400 font-medium text-base sm:text-sm focus:bg-white focus:border-[#3443c7] focus:ring-2 focus:ring-[#3443c7]/20 transition-all outline-none"
                       />
                     </div>
 
@@ -963,7 +1004,7 @@ export default function Home() {
                           value={formData.email}
                           onChange={handleEmailInputChange}
                           placeholder="e.g. name@example.com"
-                          className={`w-full pl-3 pr-16 py-2 rounded-xl border font-medium text-xs sm:text-sm focus:bg-white focus:ring-2 transition-all outline-none ${
+                          className={`w-full pl-3 pr-16 py-2 rounded-xl border font-medium text-base sm:text-sm focus:bg-white focus:ring-2 transition-all outline-none ${
                             emailValidationStatus === "invalid"
                               ? "border-red-500 ring-2 ring-red-500/20 bg-red-50/10 text-slate-800"
                               : emailValidationStatus === "valid"
@@ -1006,7 +1047,7 @@ export default function Home() {
                       value={formData.title}
                       onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
                       placeholder="e.g. Collaboration / Job Opportunity"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-800 placeholder:text-slate-400 font-medium text-xs sm:text-sm focus:bg-white focus:border-[#3443c7] focus:ring-2 focus:ring-[#3443c7]/20 transition-all outline-none"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-800 placeholder:text-slate-400 font-medium text-base sm:text-sm focus:bg-white focus:border-[#3443c7] focus:ring-2 focus:ring-[#3443c7]/20 transition-all outline-none"
                     />
                   </div>
 
@@ -1030,7 +1071,7 @@ export default function Home() {
                       value={formData.message}
                       onChange={(e) => setFormData((prev) => ({ ...prev, message: e.target.value }))}
                       placeholder="Write your message here..."
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-800 placeholder:text-slate-400 font-normal text-xs sm:text-sm resize-none focus:bg-white focus:border-[#3443c7] focus:ring-2 focus:ring-[#3443c7]/20 transition-all outline-none leading-relaxed"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-800 placeholder:text-slate-400 font-normal text-base sm:text-sm resize-none focus:bg-white focus:border-[#3443c7] focus:ring-2 focus:ring-[#3443c7]/20 transition-all outline-none leading-relaxed"
                     />
                   </div>
 
@@ -1094,16 +1135,21 @@ export default function Home() {
               /* VISTA 2: PANTALLA DE CONFIRMACIÓN EXITOSA */
               <div className="p-5 text-center bg-white flex flex-col items-center justify-center rounded-b-[24px]">
                 
-                {/* Círculo de Éxito */}
-                <div className="relative my-2">
-                  <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg relative z-10 border-4 border-white">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.2"></path>
-                    </svg>
-                  </div>
+                {/* Animación de Éxito (check con burbujas) */}
+                <div className="relative -my-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    key={payloadSummary.seqId}
+                    src={`/assets/check_animation_bubbles.png?run=${encodeURIComponent(payloadSummary.seqId)}`}
+                    alt="Message sent successfully"
+                    width={300}
+                    height={300}
+                    className="w-32 h-32 sm:w-36 sm:h-36 select-none pointer-events-none"
+                    draggable={false}
+                  />
                 </div>
 
-                <h3 className="text-xl font-extrabold text-slate-900 mt-2 mb-1.5 tracking-tight">
+                <h3 className="text-xl font-extrabold text-slate-900 mt-0 mb-1.5 tracking-tight">
                   Message Sent Successfully!
                 </h3>
 
