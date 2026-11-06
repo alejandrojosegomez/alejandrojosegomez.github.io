@@ -716,8 +716,8 @@ export default function Home() {
             {/* Carril deslizante: cada slide (foto + texto) se desliza hacia el lado */}
             <div className="overflow-hidden">
               <div
-                className="carousel-track flex"
-                style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+                className="carousel-track flex gap-16"
+                style={{ transform: `translateX(calc(-${currentSlide} * (100% + 4rem)))` }}
               >
                 {MILESTONES.map((item, idx) => {
                   const isActive = idx === currentSlide;
@@ -741,7 +741,7 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="lg:col-span-6 space-y-4">
+                      <div className="lg:col-span-6 space-y-4 pr-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
                             {item.badge}
