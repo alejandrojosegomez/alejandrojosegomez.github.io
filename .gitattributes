@@ -1,0 +1,2 @@
+# Show Google Apps Script files as JavaScript in the GitHub language bar
+*.gs linguist-language=JavaScript linguist-detectable=true
