@@ -257,16 +257,20 @@ export default function Home() {
     setIsSubmitting(true);
 
     // Envía el mensaje al servidor, que lo guarda en Google Drive y avisa por correo
+    let realSeq = dispatchSeq;
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...formData, website: honeypot }),
       });
-      const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+      const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; id?: string | null } | null;
       if (!res.ok || !data?.ok) {
         throw new Error(data?.error || "Your message could not be delivered. Please try again.");
       }
+      // Usa el número real del mensaje en el Message Log (ej. "#00007")
+      const parsed = parseInt(String(data.id ?? "").replace(/\D/g, ""), 10);
+      if (Number.isFinite(parsed)) realSeq = parsed;
     } catch (err) {
       setIsSubmitting(false);
       setValidationError({
@@ -277,10 +281,11 @@ export default function Home() {
       return;
     }
 
-    const paddedDec = `#${String(dispatchSeq).padStart(5, "0")}`;
-    const hexVal = `0x${dispatchSeq.toString(16).toUpperCase().padStart(4, "0")}`;
-    const binVal = `0b${dispatchSeq.toString(2).padStart(8, "0")}`;
-    const rowIdx = `Cataloged at Row #${String(dispatchSeq + 1).padStart(5, "0")}`;
+    const paddedDec = `#${String(realSeq).padStart(5, "0")}`;
+    const hexVal = `0x${realSeq.toString(16).toUpperCase().padStart(4, "0")}`;
+    const binVal = `0b${realSeq.toString(2).padStart(8, "0")}`;
+    const rowIdx = `Cataloged at Row #${String(realSeq + 1).padStart(5, "0")}`;
+    setDispatchSeq(realSeq);
     const now = new Date();
     const timeStr = `${now.toLocaleDateString()} at ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
 

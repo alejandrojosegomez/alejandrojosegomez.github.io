@@ -20,6 +20,16 @@ Do this once, on a computer, logged into the Google account that should own the 
    Click **Deploy** and copy the **Web app URL** (ends in `/exec`).
 6. Put that URL in Vercel as `CONTACT_SCRIPT_URL` (Production and Preview), or send it to Claude.
 
+## What the Message Log gives you
+- **Messages** tab: one row per message with auto **Category** (Job / Internship, Freelance / Project,
+  Collaboration, Networking / Question, General, Spam) and **Priority**, a **Status** dropdown
+  (New, Read, Replied, Done, Spam), **Read** and **Replied** checkboxes, a one-click **✉ Reply** link,
+  the saved file and a **Notes** column. Filters on every column, colors by status/category/priority.
+- Ticking **Replied** marks it Read + Replied; ticking **Read** moves New → Read; Status **Done** greys the row.
+- **Dashboard** tab: totals, unread, waiting for reply, high priority open, last 7 days, spam blocked,
+  counts by status and category, and a pie chart.
+- Spam is still logged (red, struck through) but doesn't email you.
+
 ## Changing the code later
 Edit the script, then **Deploy → Manage deployments → Edit (pencil) → Version: New version → Deploy**.
 The URL stays the same.
