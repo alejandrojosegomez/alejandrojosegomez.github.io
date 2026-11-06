@@ -317,8 +317,8 @@ export default function Home() {
   };
 
   const totalSlides = MILESTONES.length;
-  const activeMilestone = MILESTONES[currentSlide];
 
+  const goToSlide = (idx: number) => setCurrentSlide(idx);
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % totalSlides);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
 
@@ -364,6 +364,15 @@ export default function Home() {
           display: block;
           opacity: 0.85;
           animation: floatFlame 1.8s infinite ease-out;
+        }
+
+        /* Carrusel: deslizamiento suave hacia la siguiente foto */
+        .carousel-track {
+          transition: transform 800ms cubic-bezier(0.65, 0, 0.35, 1);
+          will-change: transform;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .carousel-track { transition: none; }
         }
 
         @keyframes lightSweep {
@@ -668,7 +677,7 @@ export default function Home() {
                 {MILESTONES.map((item, idx) => (
                   <button
                     key={item.id}
-                    onClick={() => setCurrentSlide(idx)}
+                    onClick={() => goToSlide(idx)}
                     className={`whitespace-nowrap px-3 sm:px-4 py-2 text-xs font-semibold rounded-lg transition-all duration-300 cursor-pointer ${
                       currentSlide === idx
                         ? "bg-blue-600 text-white shadow-sm font-bold"
@@ -704,49 +713,68 @@ export default function Home() {
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            <div key={activeMilestone.id} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              
-              <div className="lg:col-span-6 w-full">
-                <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
-                  <img 
-                    src={activeMilestone.imageSrc}
-                    alt={activeMilestone.imageAlt} 
-                    className="w-full h-full object-cover transition-all duration-500" 
-                  />
-                </div>
+            {/* Carril deslizante: cada slide (foto + texto) se desliza hacia el lado */}
+            <div className="overflow-hidden">
+              <div
+                className="carousel-track flex"
+                style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+              >
+                {MILESTONES.map((item, idx) => {
+                  const isActive = idx === currentSlide;
+                  return (
+                    <div
+                      key={item.id}
+                      aria-hidden={!isActive}
+                      inert={!isActive}
+                      className="w-full shrink-0 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
+                    >
+                      <div className="lg:col-span-6 w-full">
+                        <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={item.imageSrc}
+                            alt={item.imageAlt}
+                            loading="eager"
+                            draggable={false}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="lg:col-span-6 space-y-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
+                            {item.badge}
+                          </span>
+                          <span className="text-xs text-slate-500 font-medium">
+                            {item.subBadge}
+                          </span>
+                        </div>
+
+                        <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
+                          {item.title}
+                        </h3>
+
+                        <p className="text-slate-600 text-sm leading-relaxed">
+                          {item.description}
+                        </p>
+
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 text-xs text-slate-600">
+                          {item.roleBox}
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {item.tags.map((tag) => (
+                            <span key={tag} className="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 border border-blue-100">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-
-              <div className="lg:col-span-6 space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
-                    {activeMilestone.badge}
-                  </span>
-                  <span className="text-xs text-slate-500 font-medium">
-                    {activeMilestone.subBadge}
-                  </span>
-                </div>
-
-                <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
-                  {activeMilestone.title}
-                </h3>
-
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  {activeMilestone.description}
-                </p>
-
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 text-xs text-slate-600">
-                  {activeMilestone.roleBox}
-                </div>
-
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {activeMilestone.tags.map((tag) => (
-                    <span key={tag} className="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 border border-blue-100">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
             </div>
           </div>
         </section>
