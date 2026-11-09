@@ -25,6 +25,15 @@ changes; check `node_modules/next/dist/docs/` before using an API you're unsure 
    approves: merge the PR into `main` (squash), then confirm the production
    deployment is `READY` and alejandrogomez.me loads.
 
+## Credit and authorship
+
+- Every commit is authored by **Alejandro Gomez <alejandrogom2025@my.fit.edu>**
+  (`git -c user.name="Alejandro Gomez" -c user.email="alejandrogom2025@my.fit.edu" commit ...`).
+- Claude is credited only as a co-author, with one trailer line at the end of the message:
+  `Co-Authored-By: Claude <noreply@anthropic.com>`
+- Pull requests are opened and merged under Alejandro's GitHub account. No
+  "Generated with Claude Code" footer or session links in PRs or commits.
+
 ## Never do
 
 - Never push or force-push directly to `main`.
