@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { logout } from "./actions";
@@ -11,6 +11,18 @@ import { isAdmin, isConfigured } from "./session";
 export const metadata: Metadata = {
   title: "Admin · alejandrogomez.me",
   robots: { index: false, follow: false, nocache: true },
+  // Instalable como app en el teléfono (Agregar a pantalla de inicio)
+  manifest: "/admin.webmanifest",
+  applicationName: "AG Admin",
+  appleWebApp: { capable: true, title: "AG Admin", statusBarStyle: "default" },
+  icons: {
+    icon: [{ url: "/admin-icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/admin-icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#f8fafc",
 };
 
 const RANGES = [7, 30, 90] as const;
