@@ -16,7 +16,7 @@ const RANGES = [7, 30, 90] as const;
 
 export default function AdminPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   return (
-    <div className="flex-1 min-h-screen bg-slate-950 text-slate-200 [background-image:radial-gradient(ellipse_at_top,rgba(37,99,235,0.18),transparent_60%)]">
+    <div className="flex-1 min-h-screen bg-slate-50 text-slate-800">
       <Suspense fallback={<Loading />}>
         <AdminGate searchParams={searchParams} />
       </Suspense>
@@ -29,9 +29,9 @@ async function AdminGate({ searchParams }: { searchParams: Promise<{ range?: str
     if (!isConfigured()) {
       return (
         <div className="min-h-[70vh] flex items-center justify-center px-4 text-center">
-          <p className="max-w-sm text-sm text-slate-400">
-            The admin panel is not set up yet. Add <code className="text-slate-200">ADMIN_PASSWORD</code> and{" "}
-            <code className="text-slate-200">ADMIN_SESSION_SECRET</code> in Vercel → Settings → Environment Variables.
+          <p className="max-w-sm text-sm text-slate-500">
+            The admin panel is not set up yet. Add <code className="text-slate-800">ADMIN_PASSWORD</code> and{" "}
+            <code className="text-slate-800">ADMIN_SESSION_SECRET</code> in Vercel → Settings → Environment Variables.
           </p>
         </div>
       );
@@ -44,97 +44,187 @@ async function AdminGate({ searchParams }: { searchParams: Promise<{ range?: str
   return <Dashboard days={days} />;
 }
 
+/* ------------------------------------------------------------------ */
+/* Dashboard                                                           */
+/* ------------------------------------------------------------------ */
+
+type Connection = {
+  name: string;
+  detail: string;
+  status: "up" | "down" | "warn";
+  label: string;
+  ms: number | null;
+  icon: keyof typeof ICONS;
+};
+
 async function Dashboard({ days }: { days: number }) {
   const now = new Date();
   const [visitors, updates, health] = await Promise.all([getVisitors(days, now), getUpdates(days, now), getHealth()]);
-  const allUp = health.every((c) => c.ok);
+
+  const find = (n: string) => health.find((h) => h.name === n);
+  const connections: Connection[] = [
+    fromPing(find("Homepage"), "Website", "alejandrogomez.me", "globe"),
+    fromPing(find("CV (PDF)"), "CV download", "/CV_Alejandro_Gomez.pdf", "file"),
+    fromConfig(find("Contact form → Drive"), "Contact form", "Google Drive + email", "mail"),
+    {
+      name: "Vercel",
+      detail: "Deployments API",
+      status: updates.ok ? "up" : "down",
+      label: updates.ok ? "Connected" : "Error",
+      ms: null,
+      icon: "bolt",
+    },
+    {
+      name: "Analytics",
+      detail: "Vercel Web Analytics",
+      status: visitors.ok ? "up" : "warn",
+      label: visitors.ok ? "Collecting" : "Not available",
+      ms: null,
+      icon: "chart",
+    },
+  ];
+  const down = connections.filter((c) => c.status === "down").length;
+  const warn = connections.filter((c) => c.status === "warn").length;
+  const overall = down ? "down" : warn ? "warn" : "up";
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+    <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
       {/* Header */}
-      <header className="flex flex-wrap items-center justify-between gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-[11px] font-bold tracking-widest uppercase text-blue-400">
-            <span className={`w-2 h-2 rounded-full ${allUp ? "bg-emerald-400" : "bg-amber-400"} animate-pulse`} />
-            {allUp ? "All systems operational" : "Attention needed"}
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">Welcome back, Alejandro</h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Private panel · updated {now.toLocaleString("en-US", { timeZone: "America/New_York", dateStyle: "medium", timeStyle: "short" })} ET
+          <p className="text-xs font-semibold text-slate-500">
+            {now.toLocaleString("en-US", { timeZone: "America/New_York", weekday: "long", month: "long", day: "numeric" })}
           </p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-0.5">Welcome back, Alejandro</h1>
+          <div className="mt-2">
+            <StatusPill status={overall}>
+              {overall === "up" ? "All systems operational" : overall === "warn" ? "Partially operational" : "Something is down"}
+            </StatusPill>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <nav className="flex bg-slate-900 border border-slate-800 rounded-lg p-1">
+          <nav className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
             {RANGES.map((r) => (
               <Link
                 key={r}
                 href={`/admin?range=${r}`}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition ${
-                  r === days ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white"
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  r === days ? "bg-[#3443c7] text-white shadow-sm" : "text-slate-500 hover:text-slate-900"
                 }`}
               >
-                {r}d
+                {r} days
               </Link>
             ))}
           </nav>
           <RefreshButton />
-          <Link href="/" className="px-3 py-2 rounded-lg border border-slate-700 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition">
+          <Link href="/" className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
             View site
           </Link>
           <form action={logout}>
-            <button type="submit" className="px-3 py-2 rounded-lg border border-red-500/40 text-xs font-semibold text-red-300 hover:bg-red-500/10 transition cursor-pointer">
+            <button type="submit" className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-red-600 hover:bg-red-50 shadow-sm transition cursor-pointer">
               Log out
             </button>
           </form>
         </div>
       </header>
 
-      {/* KPI row */}
+      {/* KPIs */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Kpi label={`Page views (${days}d)`} value={visitors.ok ? visitors.data.total : "—"} hint={visitors.ok ? `${visitors.data.today} today` : "Analytics unavailable"} accent="blue" />
-        <Kpi label={`Updates (${days}d)`} value={updates.ok ? updates.data.total : "—"} hint={updates.ok ? `${updates.data.production} went live` : "Vercel API unavailable"} accent="violet" />
-        <Kpi label="Avg build time" value={updates.ok ? `${updates.data.avgBuildSeconds}s` : "—"} hint={updates.ok ? `${updates.data.failed} failed builds` : ""} accent="amber" />
         <Kpi
-          label="Homepage response"
-          value={health[0].ms !== null ? `${health[0].ms} ms` : "Down"}
-          hint={health[0].detail}
-          accent={health[0].ok ? "emerald" : "red"}
+          icon="users"
+          tint="blue"
+          label="Visitors"
+          value={visitors.ok ? visitors.data.total : "—"}
+          hint={visitors.ok ? `${visitors.data.today} today` : "No data yet"}
+          spark={visitors.ok ? visitors.data.perDay.map((b) => b.value) : undefined}
+        />
+        <Kpi
+          icon="rocket"
+          tint="violet"
+          label="Updates"
+          value={updates.ok ? updates.data.total : "—"}
+          hint={updates.ok ? `${updates.data.production} went live` : "Unavailable"}
+          spark={updates.ok ? updates.data.perDay.map((d) => d.production + d.preview) : undefined}
+        />
+        <Kpi
+          icon="clock"
+          tint="amber"
+          label="Avg. build time"
+          value={updates.ok ? `${updates.data.avgBuildSeconds}s` : "—"}
+          hint={updates.ok ? (updates.data.failed ? `${updates.data.failed} failed` : "No failed builds") : "Unavailable"}
+        />
+        <Kpi
+          icon="bolt"
+          tint={connections[0].status === "up" ? "emerald" : "red"}
+          label="Response time"
+          value={connections[0].ms !== null ? `${connections[0].ms} ms` : "Down"}
+          hint={speedLabel(connections[0].ms)}
         />
       </section>
 
+      {/* Connections + update status bars */}
+      <section className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <Card className="lg:col-span-2" title="Connections" subtitle="Checked live every minute">
+          <ul className="divide-y divide-slate-100">
+            {connections.map((c) => (
+              <li key={c.name} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex items-center gap-3">
+                  <IconBox icon={c.icon} status={c.status} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-slate-900">{c.name}</div>
+                    <div className="text-xs text-slate-500 truncate">{c.detail}</div>
+                  </div>
+                  <StatusPill status={c.status} small>
+                    {c.label}
+                  </StatusPill>
+                </div>
+                {c.ms !== null && (
+                  <div className="mt-2 ml-11 flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div className={`h-full rounded-full ${speedColor(c.ms)}`} style={{ width: `${Math.max(4, Math.min(100, (c.ms / 1500) * 100))}%` }} />
+                    </div>
+                    <span className="text-[11px] text-slate-500 w-14 text-right">{c.ms} ms</span>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+
+        <Card className="lg:col-span-3" title="Update status" subtitle={`Every change pushed to the site · last ${days} days`}>
+          {updates.ok ? <UpdateStatus u={updates.data} /> : <Unavailable r={updates} kind="vercel" />}
+        </Card>
+      </section>
+
       {/* Visitors */}
-      <Panel title="Visitors" subtitle="Vercel Web Analytics · page views per day">
+      <Card title="Visitors" subtitle={`Page views per day · last ${days} days`}>
         {visitors.ok ? <VisitorsView v={visitors.data} /> : <Unavailable r={visitors} kind="analytics" />}
-      </Panel>
+      </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Updates */}
-        <div className="lg:col-span-3">
-          <Panel title="Update activity" subtitle="Every change pushed to the site (Vercel deployments)">
-            {updates.ok ? <UpdatesView u={updates.data} /> : <Unavailable r={updates} kind="vercel" />}
-          </Panel>
-        </div>
-
-        {/* Health + Claude */}
-        <div className="lg:col-span-2 space-y-6">
-          <Panel title="Server health" subtitle="Checked live on every refresh">
-            <HealthView checks={health} last={updates.ok ? updates.data.lastProduction : null} />
-          </Panel>
-          <Panel title="Claude usage" subtitle="Tokens spent on updates">
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Claude&apos;s token usage isn&apos;t available to websites. Your live session and weekly limits are in Claude.
+      {/* Latest updates + Claude */}
+      <section className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <Card className="lg:col-span-3" title="Latest updates" subtitle="Newest first · build time on the right">
+          {updates.ok ? <LatestUpdates u={updates.data} /> : <Unavailable r={updates} kind="vercel" />}
+        </Card>
+        <Card className="lg:col-span-2" title="Claude usage" subtitle="Tokens spent on updates">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 shrink-0 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
+              <Icon name="spark" className="w-5 h-5" />
+            </div>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Claude&apos;s token usage can&apos;t be read by websites. Your 5-hour session and weekly limits are in Claude settings.
             </p>
-            <a
-              href="https://claude.ai/settings/usage"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-orange-500/15 border border-orange-400/40 text-orange-200 text-xs font-semibold hover:bg-orange-500/25 transition"
-            >
-              Open Settings → Usage ↗
-            </a>
-          </Panel>
-        </div>
-      </div>
+          </div>
+          <a
+            href="https://claude.ai/settings/usage"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition"
+          >
+            Open Settings → Usage ↗
+          </a>
+        </Card>
+      </section>
     </main>
   );
 }
@@ -143,12 +233,94 @@ async function Dashboard({ days }: { days: number }) {
 /* Sections                                                            */
 /* ------------------------------------------------------------------ */
 
+function UpdateStatus({ u }: { u: Updates }) {
+  const active = u.perDay.filter((d) => d.production + d.preview > 0);
+  const ok = active.filter((d) => d.failed === 0).length;
+  const pct = active.length ? Math.round((ok / active.length) * 100) : 100;
+  return (
+    <div>
+      <div className="flex items-end justify-between mb-3">
+        <div>
+          <div className="text-3xl font-extrabold text-slate-900">{pct}%</div>
+          <div className="text-xs text-slate-500">of update days with no failed builds</div>
+        </div>
+        <div className="text-right text-xs text-slate-500">
+          <div><b className="text-slate-900">{u.total}</b> updates</div>
+          <div><b className="text-slate-900">{u.production}</b> went live</div>
+        </div>
+      </div>
+
+      <div className="flex gap-[3px] h-10">
+        {u.perDay.map((d) => {
+          const total = d.production + d.preview;
+          const color =
+            total === 0 ? "bg-slate-200" : d.failed === 0 ? "bg-emerald-500" : d.failed < total ? "bg-amber-400" : "bg-red-500";
+          return (
+            <div
+              key={d.label}
+              title={`${shortDate(d.label)}: ${total} update${total === 1 ? "" : "s"}${d.failed ? `, ${d.failed} failed` : ""}`}
+              className={`flex-1 rounded-[3px] ${color} hover:opacity-75 transition`}
+            />
+          );
+        })}
+      </div>
+      <div className="flex justify-between mt-1.5 text-[10px] text-slate-400">
+        <span>{shortDate(u.perDay[0]?.label ?? "")}</span>
+        <span>Today</span>
+      </div>
+
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-4 text-[11px] text-slate-500">
+        <Legend color="bg-emerald-500">All builds OK</Legend>
+        <Legend color="bg-amber-400">Some failed</Legend>
+        <Legend color="bg-red-500">Failed</Legend>
+        <Legend color="bg-slate-200">No updates</Legend>
+      </div>
+
+      {u.lastProduction && (
+        <div className="mt-5 p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+          <div className="min-w-0 text-xs">
+            <div className="text-slate-500">Live version</div>
+            <div className="font-semibold text-slate-900 truncate">{u.lastProduction.title}</div>
+          </div>
+          <span className="ml-auto text-[11px] text-slate-400 whitespace-nowrap">{timeAgo(u.lastProduction.created)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VisitorsView({ v }: { v: Visitors }) {
+  const max = Math.max(1, ...v.perDay.map((b) => b.value));
+  const step = Math.max(1, Math.ceil(v.perDay.length / 6));
   return (
     <div className="space-y-6">
-      <VBars bars={v.perDay} color="bg-blue-500" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-        <HBars title="Top pages" bars={v.pages} color="bg-blue-500" />
+      {v.total === 0 ? (
+        <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-800">
+          No visits counted yet. Tracking starts once this version is live on alejandrogomez.me.
+        </div>
+      ) : null}
+      <div>
+        <div className="flex items-end gap-[3px] h-40">
+          {v.perDay.map((b) => (
+            <div key={b.label} className="flex-1 h-full flex flex-col justify-end" title={`${shortDate(b.label)}: ${b.value} views`}>
+              <div
+                className={`rounded-t-md transition ${b.value ? "bg-gradient-to-t from-[#3443c7] to-blue-400 hover:opacity-80" : "bg-slate-100"}`}
+                style={{ height: b.value ? `${Math.max(4, (b.value / max) * 100)}%` : "3px" }}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-[3px] mt-1.5">
+          {v.perDay.map((b, i) => (
+            <div key={b.label} className="flex-1 text-[10px] text-slate-400 text-center whitespace-nowrap">
+              {i % step === 0 || i === v.perDay.length - 1 ? shortDate(b.label) : ""}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <HBars title="Top pages" bars={v.pages} color="bg-[#3443c7]" />
         <HBars title="Countries" bars={v.countries} color="bg-emerald-500" />
         <HBars title="Devices" bars={v.devices} color="bg-violet-500" />
         <HBars title="Came from" bars={v.referrers} color="bg-amber-500" />
@@ -157,93 +329,39 @@ function VisitorsView({ v }: { v: Visitors }) {
   );
 }
 
-function UpdatesView({ u }: { u: Updates }) {
-  const max = Math.max(1, ...u.perDay.map((d) => d.production + d.preview));
-  const maxBuild = Math.max(1, ...u.recent.map((r) => r.buildSeconds ?? 0));
+function LatestUpdates({ u }: { u: Updates }) {
+  const recent = u.recent.slice(0, 6);
+  const maxBuild = Math.max(1, ...recent.map((r) => r.buildSeconds ?? 0));
+  if (recent.length === 0) return <p className="text-sm text-slate-500">No updates in this period.</p>;
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-end gap-[3px] h-32">
-          {u.perDay.map((d) => (
-            <div key={d.label} className="flex-1 h-full flex flex-col justify-end group relative" title={`${d.label}: ${d.production} live, ${d.preview} preview`}>
-              <div className="bg-slate-500/70 rounded-t-sm" style={{ height: `${(d.preview / max) * 100}%` }} />
-              <div className="bg-violet-500" style={{ height: `${(d.production / max) * 100}%` }} />
-              {d.production + d.preview === 0 && <div className="h-[2px] bg-slate-800 rounded" />}
+    <ul className="space-y-3">
+      {recent.map((r) => (
+        <li key={r.id} className="flex items-center gap-3">
+          <StateBadge state={r.state} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              {r.inspectorUrl ? (
+                <a href={r.inspectorUrl} target="_blank" rel="noopener noreferrer" className="truncate text-sm font-medium text-slate-900 hover:text-[#3443c7]">
+                  {r.title}
+                </a>
+              ) : (
+                <span className="truncate text-sm font-medium text-slate-900">{r.title}</span>
+              )}
+              {r.production && <span className="shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-violet-100 text-violet-700">LIVE</span>}
             </div>
-          ))}
-        </div>
-        <AxisLabels labels={u.perDay.map((d) => d.label)} />
-        <div className="flex gap-4 mt-2 text-[11px] text-slate-400">
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-violet-500" /> Went live</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-slate-500/70" /> Preview</span>
-        </div>
-      </div>
-
-      <div>
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Latest updates · build time</h4>
-        <ul className="space-y-2.5">
-          {u.recent.length === 0 && <li className="text-sm text-slate-500">No updates in this period.</li>}
-          {u.recent.map((r) => (
-            <li key={r.id} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 items-center">
-              <div className="min-w-0 flex items-center gap-2">
-                <StateDot state={r.state} />
-                {r.inspectorUrl ? (
-                  <a href={r.inspectorUrl} target="_blank" rel="noopener noreferrer" className="truncate text-sm text-slate-200 hover:text-white hover:underline">
-                    {r.title}
-                  </a>
-                ) : (
-                  <span className="truncate text-sm text-slate-200">{r.title}</span>
-                )}
-                {r.production && <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-violet-500/20 text-violet-300">LIVE</span>}
+            <div className="mt-1 flex items-center gap-2">
+              <div className="flex-1 h-1 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-full rounded-full bg-violet-400" style={{ width: `${((r.buildSeconds ?? 0) / maxBuild) * 100}%` }} />
               </div>
-              <span className="text-[11px] text-slate-500 text-right whitespace-nowrap">{timeAgo(r.created)}</span>
-              <div className="col-span-2 flex items-center gap-2">
-                <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-violet-400/80 rounded-full" style={{ width: `${((r.buildSeconds ?? 0) / maxBuild) * 100}%` }} />
-                </div>
-                <span className="text-[11px] text-slate-500 w-10 text-right">{r.buildSeconds !== null ? `${r.buildSeconds}s` : "—"}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-function HealthView({ checks, last }: { checks: Check[]; last: Updates["lastProduction"] }) {
-  return (
-    <div className="space-y-4">
-      {checks.map((c) => {
-        const pct = c.ms === null ? (c.ok ? 100 : 0) : Math.min(100, (c.ms / 2000) * 100);
-        const color = !c.ok ? "bg-red-500" : c.ms === null ? "bg-emerald-500" : c.ms < 500 ? "bg-emerald-500" : c.ms < 1500 ? "bg-amber-500" : "bg-red-500";
-        return (
-          <div key={c.name}>
-            <div className="flex items-center justify-between text-sm">
-              <span className="flex items-center gap-2 text-slate-200">
-                <span className={`w-2 h-2 rounded-full ${c.ok ? "bg-emerald-400" : "bg-red-400"}`} />
-                {c.name}
+              <span className="text-[11px] text-slate-400 w-24 text-right whitespace-nowrap">
+                {r.buildSeconds !== null ? `${r.buildSeconds}s · ` : ""}
+                {timeAgo(r.created)}
               </span>
-              <span className={`text-xs ${c.ok ? "text-slate-400" : "text-red-300"}`}>{c.ms !== null ? `${c.ms} ms · ${c.detail}` : c.detail}</span>
-            </div>
-            <div className="mt-1.5 h-2 bg-slate-800 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.max(pct, c.ok ? 4 : 0)}%` }} />
             </div>
           </div>
-        );
-      })}
-      <div className="pt-3 border-t border-slate-800 text-xs text-slate-400">
-        {last ? (
-          <>
-            Live version: <span className="text-slate-200">{last.title}</span>
-            <br />
-            deployed {timeAgo(last.created)}
-          </>
-        ) : (
-          "Live version info unavailable."
-        )}
-      </div>
-    </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -251,29 +369,11 @@ function HealthView({ checks, last }: { checks: Check[]; last: Updates["lastProd
 /* Building blocks                                                     */
 /* ------------------------------------------------------------------ */
 
-const ACCENTS = {
-  blue: "from-blue-500/20 border-blue-500/30 text-blue-300",
-  violet: "from-violet-500/20 border-violet-500/30 text-violet-300",
-  amber: "from-amber-500/20 border-amber-500/30 text-amber-300",
-  emerald: "from-emerald-500/20 border-emerald-500/30 text-emerald-300",
-  red: "from-red-500/20 border-red-500/30 text-red-300",
-} as const;
-
-function Kpi({ label, value, hint, accent }: { label: string; value: number | string; hint: string; accent: keyof typeof ACCENTS }) {
+function Card({ title, subtitle, children, className = "" }: { title: string; subtitle: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border bg-gradient-to-br to-slate-900/60 p-4 sm:p-5 ${ACCENTS[accent]}`}>
-      <div className="text-[11px] font-semibold uppercase tracking-wider opacity-90">{label}</div>
-      <div className="text-2xl sm:text-3xl font-extrabold text-white mt-1">{typeof value === "number" ? value.toLocaleString("en-US") : value}</div>
-      <div className="text-[11px] text-slate-400 mt-1 truncate">{hint}</div>
-    </div>
-  );
-}
-
-function Panel({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6 shadow-xl">
+    <section className={`rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] p-5 sm:p-6 ${className}`}>
       <div className="mb-5">
-        <h2 className="text-base font-bold text-white">{title}</h2>
+        <h2 className="text-base font-bold text-slate-900">{title}</h2>
         <p className="text-xs text-slate-500">{subtitle}</p>
       </div>
       {children}
@@ -281,35 +381,98 @@ function Panel({ title, subtitle, children }: { title: string; subtitle: string;
   );
 }
 
-function VBars({ bars, color }: { bars: Bar[]; color: string }) {
-  const max = Math.max(1, ...bars.map((b) => b.value));
+const TINTS = {
+  blue: "bg-blue-50 text-[#3443c7]",
+  violet: "bg-violet-50 text-violet-600",
+  amber: "bg-amber-50 text-amber-600",
+  emerald: "bg-emerald-50 text-emerald-600",
+  red: "bg-red-50 text-red-600",
+} as const;
+
+const SPARK = {
+  blue: "bg-[#3443c7]/70",
+  violet: "bg-violet-400",
+  amber: "bg-amber-400",
+  emerald: "bg-emerald-400",
+  red: "bg-red-400",
+} as const;
+
+function Kpi({
+  icon,
+  tint,
+  label,
+  value,
+  hint,
+  spark,
+}: {
+  icon: keyof typeof ICONS;
+  tint: keyof typeof TINTS;
+  label: string;
+  value: number | string;
+  hint: string;
+  spark?: number[];
+}) {
+  const max = spark ? Math.max(1, ...spark) : 1;
   return (
-    <div>
-      <div className="flex items-end gap-[3px] h-40">
-        {bars.map((b) => (
-          <div key={b.label} className="flex-1 h-full flex flex-col justify-end" title={`${b.label}: ${b.value} views`}>
-            {b.value > 0 ? (
-              <div className={`${color} rounded-t-sm hover:brightness-125 transition`} style={{ height: `${(b.value / max) * 100}%` }} />
-            ) : (
-              <div className="h-[2px] bg-slate-800 rounded" />
-            )}
-          </div>
-        ))}
+    <div className="rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] p-4 sm:p-5">
+      <div className="flex items-center gap-2.5">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${TINTS[tint]}`}>
+          <Icon name={icon} className="w-4 h-4" />
+        </div>
+        <span className="text-xs font-semibold text-slate-500">{label}</span>
       </div>
-      <AxisLabels labels={bars.map((b) => b.label)} />
+      <div className="mt-3 text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+        {typeof value === "number" ? value.toLocaleString("en-US") : value}
+      </div>
+      <div className="flex items-end justify-between gap-2 mt-1">
+        <span className="text-[11px] text-slate-500 truncate">{hint}</span>
+        {spark && spark.some((n) => n > 0) && (
+          <div className="flex items-end gap-px h-6 w-20 shrink-0">
+            {spark.slice(-14).map((n, i) => (
+              <div key={i} className={`flex-1 rounded-sm ${n ? SPARK[tint] : "bg-slate-100"}`} style={{ height: `${n ? Math.max(15, (n / max) * 100) : 12}%` }} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function AxisLabels({ labels }: { labels: string[] }) {
-  const step = Math.max(1, Math.ceil(labels.length / 6));
+function StatusPill({ status, small, children }: { status: "up" | "down" | "warn"; small?: boolean; children: React.ReactNode }) {
+  const styles = {
+    up: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    warn: "bg-amber-50 text-amber-700 border-amber-200",
+    down: "bg-red-50 text-red-700 border-red-200",
+  }[status];
+  const dot = { up: "bg-emerald-500", warn: "bg-amber-500", down: "bg-red-500" }[status];
   return (
-    <div className="flex gap-[3px] mt-1.5">
-      {labels.map((l, i) => (
-        <div key={l} className="flex-1 text-[10px] text-slate-500 text-center overflow-visible whitespace-nowrap">
-          {i % step === 0 || i === labels.length - 1 ? shortDate(l) : ""}
-        </div>
-      ))}
+    <span className={`inline-flex items-center gap-1.5 rounded-full border font-semibold whitespace-nowrap ${styles} ${small ? "px-2 py-0.5 text-[11px]" : "px-3 py-1 text-xs"}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${dot} ${status === "up" ? "animate-pulse" : ""}`} />
+      {children}
+    </span>
+  );
+}
+
+function IconBox({ icon, status }: { icon: keyof typeof ICONS; status: Connection["status"] }) {
+  const tone = status === "up" ? "bg-slate-50 text-slate-600" : status === "warn" ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600";
+  return (
+    <div className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${tone}`}>
+      <Icon name={icon} className="w-4 h-4" />
+    </div>
+  );
+}
+
+function StateBadge({ state }: { state: string }) {
+  const map: Record<string, string> = {
+    READY: "bg-emerald-50 text-emerald-600",
+    ERROR: "bg-red-50 text-red-600",
+    CANCELED: "bg-slate-100 text-slate-500",
+  };
+  const cls = map[state] ?? "bg-amber-50 text-amber-600";
+  const icon = state === "READY" ? "check" : state === "ERROR" ? "x" : "clock";
+  return (
+    <div className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center ${cls}`} title={state}>
+      <Icon name={icon} className="w-3.5 h-3.5" />
     </div>
   );
 }
@@ -318,18 +481,18 @@ function HBars({ title, bars, color }: { title: string; bars: Bar[]; color: stri
   const max = Math.max(1, ...bars.map((b) => b.value));
   return (
     <div>
-      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">{title}</h4>
+      <h4 className="text-xs font-bold text-slate-500 mb-3">{title}</h4>
       {bars.length === 0 ? (
-        <p className="text-xs text-slate-600">No data yet</p>
+        <p className="text-xs text-slate-400">No data yet</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-2.5">
           {bars.map((b) => (
             <li key={b.label}>
               <div className="flex justify-between text-xs mb-1">
-                <span className="truncate text-slate-300 pr-2">{b.label}</span>
-                <span className="text-slate-500">{b.value.toLocaleString("en-US")}</span>
+                <span className="truncate text-slate-700 pr-2">{b.label}</span>
+                <span className="font-semibold text-slate-900">{b.value.toLocaleString("en-US")}</span>
               </div>
-              <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                 <div className={`h-full ${color} rounded-full`} style={{ width: `${(b.value / max) * 100}%` }} />
               </div>
             </li>
@@ -340,22 +503,26 @@ function HBars({ title, bars, color }: { title: string; bars: Bar[]; color: stri
   );
 }
 
-function StateDot({ state }: { state: string }) {
-  const c = state === "READY" ? "bg-emerald-400" : state === "ERROR" ? "bg-red-400" : state === "CANCELED" ? "bg-slate-500" : "bg-amber-400 animate-pulse";
-  return <span className={`shrink-0 w-2 h-2 rounded-full ${c}`} title={state} />;
+function Legend({ color, children }: { color: string; children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={`w-2.5 h-2.5 rounded-sm ${color}`} />
+      {children}
+    </span>
+  );
 }
 
 function Unavailable({ r, kind }: { r: Result<unknown>; kind: "analytics" | "vercel" }) {
   const error = r.ok ? "" : r.error;
   const notEnabled = /web_analytics_not_enabled/i.test(error);
   return (
-    <div className="rounded-xl border border-dashed border-slate-700 p-5 text-sm text-slate-400">
+    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
       {notEnabled ? (
-        <>Web Analytics is not enabled yet. Turn it on in Vercel → your project → <b className="text-slate-200">Analytics</b> → Enable.</>
+        <>Web Analytics is not enabled yet. Turn it on in Vercel → your project → <b className="text-slate-900">Analytics</b> → Enable.</>
       ) : /VERCEL_API_TOKEN/.test(error) ? (
-        <>Add a <b className="text-slate-200">VERCEL_API_TOKEN</b> in Vercel → Settings → Environment Variables to see {kind === "analytics" ? "visitors" : "updates"}.</>
+        <>Add a <b className="text-slate-900">VERCEL_API_TOKEN</b> in Vercel → Settings → Environment Variables to see {kind === "analytics" ? "visitors" : "updates"}.</>
       ) : (
-        <>Couldn&apos;t load {kind === "analytics" ? "visitor data" : "deployments"}: <code className="text-slate-300">{error}</code></>
+        <>Couldn&apos;t load {kind === "analytics" ? "visitor data" : "deployments"}: <code className="text-slate-900">{error}</code></>
       )}
     </div>
   );
@@ -363,19 +530,65 @@ function Unavailable({ r, kind }: { r: Result<unknown>; kind: "analytics" | "ver
 
 function Loading() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-6 animate-pulse">
-      <div className="h-10 w-72 bg-slate-800 rounded-lg" />
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-6 animate-pulse">
+      <div className="h-10 w-72 bg-slate-200 rounded-lg" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[0, 1, 2, 3].map((i) => <div key={i} className="h-24 bg-slate-900 rounded-2xl border border-slate-800" />)}
+        {[0, 1, 2, 3].map((i) => <div key={i} className="h-28 bg-white rounded-2xl border border-slate-200" />)}
       </div>
-      <div className="h-72 bg-slate-900 rounded-2xl border border-slate-800" />
+      <div className="h-72 bg-white rounded-2xl border border-slate-200" />
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
+/* Icons                                                               */
+/* ------------------------------------------------------------------ */
+
+const ICONS = {
+  globe: "M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.5-2.5 3.5-5.5 3.5-9S14.5 5.5 12 3m0 18c-2.5-2.5-3.5-5.5-3.5-9S9.5 5.5 12 3M3.5 9h17M3.5 15h17",
+  file: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+  mail: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+  bolt: "M13 10V3L4 14h7v7l9-11h-7z",
+  chart: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+  users: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
+  rocket: "M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.63 8.41m5.96 5.96a14.93 14.93 0 01-5.84 2.58m0 0a6 6 0 01-7.38-5.84h4.8m2.58-5.84a14.93 14.93 0 00-2.58 5.84",
+  clock: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+  check: "M5 13l4 4L19 7",
+  x: "M6 18L18 6M6 6l12 12",
+  spark: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z",
+} as const;
+
+function Icon({ name, className }: { name: keyof typeof ICONS; className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={ICONS[name]} />
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+function fromPing(c: Check | undefined, name: string, detail: string, icon: Connection["icon"]): Connection {
+  if (!c) return { name, detail, status: "warn", label: "Unknown", ms: null, icon };
+  return { name, detail, status: c.ok ? "up" : "down", label: c.ok ? "Online" : "Down", ms: c.ms, icon };
+}
+
+function fromConfig(c: Check | undefined, name: string, detail: string, icon: Connection["icon"]): Connection {
+  const ok = Boolean(c?.ok);
+  return { name, detail, status: ok ? "up" : "warn", label: ok ? "Connected" : "Not set up", ms: null, icon };
+}
+
+function speedColor(ms: number): string {
+  return ms < 500 ? "bg-emerald-500" : ms < 1200 ? "bg-amber-400" : "bg-red-500";
+}
+
+function speedLabel(ms: number | null): string {
+  if (ms === null) return "Not responding";
+  return ms < 500 ? "Fast" : ms < 1200 ? "OK" : "Slow";
+}
 
 function shortDate(iso: string): string {
+  if (!iso) return "";
   const d = new Date(`${iso}T12:00:00Z`);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }

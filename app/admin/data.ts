@@ -162,7 +162,7 @@ export type Updates = {
   production: number;
   failed: number;
   avgBuildSeconds: number;
-  perDay: { label: string; production: number; preview: number }[];
+  perDay: { label: string; production: number; preview: number; failed: number }[];
   recent: UpdateItem[];
   lastProduction: UpdateItem | null;
 };
@@ -193,14 +193,17 @@ export async function getUpdates(days: number, now: Date): Promise<Result<Update
     };
   });
 
-  const perDayMap = new Map<string, { production: number; preview: number }>();
+  const perDayMap = new Map<string, { production: number; preview: number; failed: number }>();
   for (let i = days - 1; i >= 0; i--) {
-    perDayMap.set(new Date(now.getTime() - i * 86_400_000).toISOString().slice(0, 10), { production: 0, preview: 0 });
+    perDayMap.set(new Date(now.getTime() - i * 86_400_000).toISOString().slice(0, 10), { production: 0, preview: 0, failed: 0 });
   }
   for (const it of items) {
     const key = new Date(it.created).toISOString().slice(0, 10);
     const slot = perDayMap.get(key);
-    if (slot) slot[it.production ? "production" : "preview"] += 1;
+    if (slot) {
+      slot[it.production ? "production" : "preview"] += 1;
+      if (it.state === "ERROR") slot.failed += 1;
+    }
   }
 
   const builds = items.map((i) => i.buildSeconds).filter((s): s is number => s !== null);
