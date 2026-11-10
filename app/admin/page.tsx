@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { logout } from "./actions";
+import { AnimatedNumber } from "./animated-number";
 import { getHealth, getUpdates, getVisitors, type Bar, type Check, type Result, type Updates, type Visitors } from "./data";
 import { LoginForm } from "./login-form";
 import { RefreshButton } from "./refresh-button";
@@ -10,6 +11,18 @@ import { isAdmin, isConfigured } from "./session";
 export const metadata: Metadata = {
   title: "Admin · alejandrogomez.me",
   robots: { index: false, follow: false, nocache: true },
+  // Instalable como app en el teléfono (Agregar a pantalla de inicio)
+  manifest: "/admin.webmanifest",
+  applicationName: "AG Admin",
+  appleWebApp: { capable: true, title: "AG Admin", statusBarStyle: "default" },
+  icons: {
+    icon: [{ url: "/admin-icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/admin-icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#f8fafc",
 };
 
 const RANGES = [7, 30, 90] as const;
@@ -17,6 +30,21 @@ const RANGES = [7, 30, 90] as const;
 export default function AdminPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   return (
     <div className="flex-1 min-h-screen bg-slate-50 text-slate-800">
+      <style>{`
+        @keyframes growY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+        @keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        .grow-y { transform-origin: bottom; animation: growY 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .grow-x { transform-origin: left; animation: growX 1000ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .fade-up { animation: fadeUp 600ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .smooth-h { transition: height 1200ms cubic-bezier(0.22, 1, 0.36, 1), background-color 700ms ease; }
+        .smooth-w { transition: width 1200ms cubic-bezier(0.22, 1, 0.36, 1); }
+        .smooth-c { transition: background-color 800ms ease; }
+        @media (prefers-reduced-motion: reduce) {
+          .grow-y, .grow-x, .fade-up { animation: none; }
+          .smooth-h, .smooth-w, .smooth-c { transition: none; }
+        }
+      `}</style>
       <Suspense fallback={<Loading />}>
         <AdminGate searchParams={searchParams} />
       </Suspense>
@@ -150,14 +178,16 @@ async function Dashboard({ days }: { days: number }) {
           icon="clock"
           tint="amber"
           label="Avg. build time"
-          value={updates.ok ? `${updates.data.avgBuildSeconds}s` : "—"}
+          value={updates.ok ? updates.data.avgBuildSeconds : "—"}
+          suffix="s"
           hint={updates.ok ? (updates.data.failed ? `${updates.data.failed} failed` : "No failed builds") : "Unavailable"}
         />
         <Kpi
           icon="bolt"
           tint={connections[0].status === "up" ? "emerald" : "red"}
           label="Response time"
-          value={connections[0].ms !== null ? `${connections[0].ms} ms` : "Down"}
+          value={connections[0].ms !== null ? connections[0].ms : "Down"}
+          suffix=" ms"
           hint={speedLabel(connections[0].ms)}
         />
       </section>
@@ -181,9 +211,9 @@ async function Dashboard({ days }: { days: number }) {
                 {c.ms !== null && (
                   <div className="mt-2 ml-11 flex items-center gap-2">
                     <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                      <div className={`h-full rounded-full ${speedColor(c.ms)}`} style={{ width: `${Math.max(4, Math.min(100, (c.ms / 1500) * 100))}%` }} />
+                      <div className={`grow-x smooth-w h-full rounded-full ${speedColor(c.ms)}`} style={{ width: `${Math.max(4, Math.min(100, (c.ms / 1500) * 100))}%` }} />
                     </div>
-                    <span className="text-[11px] text-slate-500 w-14 text-right">{c.ms} ms</span>
+                    <span className="text-[11px] text-slate-500 w-14 text-right"><AnimatedNumber value={c.ms} suffix=" ms" /></span>
                   </div>
                 )}
               </li>
@@ -241,17 +271,17 @@ function UpdateStatus({ u }: { u: Updates }) {
     <div>
       <div className="flex items-end justify-between mb-3">
         <div>
-          <div className="text-3xl font-extrabold text-slate-900">{pct}%</div>
+          <div className="text-3xl font-extrabold text-slate-900"><AnimatedNumber value={pct} suffix="%" /></div>
           <div className="text-xs text-slate-500">of update days with no failed builds</div>
         </div>
         <div className="text-right text-xs text-slate-500">
-          <div><b className="text-slate-900">{u.total}</b> updates</div>
-          <div><b className="text-slate-900">{u.production}</b> went live</div>
+          <div><b className="text-slate-900"><AnimatedNumber value={u.total} /></b> updates</div>
+          <div><b className="text-slate-900"><AnimatedNumber value={u.production} /></b> went live</div>
         </div>
       </div>
 
       <div className="flex gap-[3px] h-10">
-        {u.perDay.map((d) => {
+        {u.perDay.map((d, i) => {
           const total = d.production + d.preview;
           const color =
             total === 0 ? "bg-slate-200" : d.failed === 0 ? "bg-emerald-500" : d.failed < total ? "bg-amber-400" : "bg-red-500";
@@ -259,7 +289,8 @@ function UpdateStatus({ u }: { u: Updates }) {
             <div
               key={d.label}
               title={`${shortDate(d.label)}: ${total} update${total === 1 ? "" : "s"}${d.failed ? `, ${d.failed} failed` : ""}`}
-              className={`flex-1 rounded-[3px] ${color} hover:opacity-75 transition`}
+              className={`grow-y smooth-c flex-1 rounded-[3px] ${color} hover:opacity-75`}
+              style={{ animationDelay: `${i * 18}ms` }}
             />
           );
         })}
@@ -302,11 +333,11 @@ function VisitorsView({ v }: { v: Visitors }) {
       ) : null}
       <div>
         <div className="flex items-end gap-[3px] h-40">
-          {v.perDay.map((b) => (
+          {v.perDay.map((b, i) => (
             <div key={b.label} className="flex-1 h-full flex flex-col justify-end" title={`${shortDate(b.label)}: ${b.value} views`}>
               <div
-                className={`rounded-t-md transition ${b.value ? "bg-gradient-to-t from-[#3443c7] to-blue-400 hover:opacity-80" : "bg-slate-100"}`}
-                style={{ height: b.value ? `${Math.max(4, (b.value / max) * 100)}%` : "3px" }}
+                className={`grow-y smooth-h rounded-t-md ${b.value ? "bg-gradient-to-t from-[#3443c7] to-blue-400 hover:opacity-80" : "bg-slate-100"}`}
+                style={{ height: b.value ? `${Math.max(4, (b.value / max) * 100)}%` : "3px", animationDelay: `${i * 22}ms` }}
               />
             </div>
           ))}
@@ -351,7 +382,7 @@ function LatestUpdates({ u }: { u: Updates }) {
             </div>
             <div className="mt-1 flex items-center gap-2">
               <div className="flex-1 h-1 rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full rounded-full bg-violet-400" style={{ width: `${((r.buildSeconds ?? 0) / maxBuild) * 100}%` }} />
+                <div className="grow-x smooth-w h-full rounded-full bg-violet-400" style={{ width: `${((r.buildSeconds ?? 0) / maxBuild) * 100}%` }} />
               </div>
               <span className="text-[11px] text-slate-400 w-24 text-right whitespace-nowrap">
                 {r.buildSeconds !== null ? `${r.buildSeconds}s · ` : ""}
@@ -371,7 +402,7 @@ function LatestUpdates({ u }: { u: Updates }) {
 
 function Card({ title, subtitle, children, className = "" }: { title: string; subtitle: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] p-5 sm:p-6 ${className}`}>
+    <section className={`fade-up rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] p-5 sm:p-6 ${className}`}>
       <div className="mb-5">
         <h2 className="text-base font-bold text-slate-900">{title}</h2>
         <p className="text-xs text-slate-500">{subtitle}</p>
@@ -404,6 +435,7 @@ function Kpi({
   value,
   hint,
   spark,
+  suffix = "",
 }: {
   icon: keyof typeof ICONS;
   tint: keyof typeof TINTS;
@@ -411,10 +443,11 @@ function Kpi({
   value: number | string;
   hint: string;
   spark?: number[];
+  suffix?: string;
 }) {
   const max = spark ? Math.max(1, ...spark) : 1;
   return (
-    <div className="rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] p-4 sm:p-5">
+    <div className="fade-up rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] p-4 sm:p-5">
       <div className="flex items-center gap-2.5">
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${TINTS[tint]}`}>
           <Icon name={icon} className="w-4 h-4" />
@@ -422,14 +455,18 @@ function Kpi({
         <span className="text-xs font-semibold text-slate-500">{label}</span>
       </div>
       <div className="mt-3 text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-        {typeof value === "number" ? value.toLocaleString("en-US") : value}
+        {typeof value === "number" ? <AnimatedNumber value={value} suffix={suffix} /> : value}
       </div>
       <div className="flex items-end justify-between gap-2 mt-1">
         <span className="text-[11px] text-slate-500 truncate">{hint}</span>
         {spark && spark.some((n) => n > 0) && (
           <div className="flex items-end gap-px h-6 w-20 shrink-0">
             {spark.slice(-14).map((n, i) => (
-              <div key={i} className={`flex-1 rounded-sm ${n ? SPARK[tint] : "bg-slate-100"}`} style={{ height: `${n ? Math.max(15, (n / max) * 100) : 12}%` }} />
+              <div
+                key={i}
+                className={`grow-y smooth-h flex-1 rounded-sm ${n ? SPARK[tint] : "bg-slate-100"}`}
+                style={{ height: `${n ? Math.max(15, (n / max) * 100) : 12}%`, animationDelay: `${i * 30}ms` }}
+              />
             ))}
           </div>
         )}
@@ -490,10 +527,10 @@ function HBars({ title, bars, color }: { title: string; bars: Bar[]; color: stri
             <li key={b.label}>
               <div className="flex justify-between text-xs mb-1">
                 <span className="truncate text-slate-700 pr-2">{b.label}</span>
-                <span className="font-semibold text-slate-900">{b.value.toLocaleString("en-US")}</span>
+                <span className="font-semibold text-slate-900"><AnimatedNumber value={b.value} /></span>
               </div>
               <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div className={`h-full ${color} rounded-full`} style={{ width: `${(b.value / max) * 100}%` }} />
+                <div className={`grow-x smooth-w h-full ${color} rounded-full`} style={{ width: `${(b.value / max) * 100}%` }} />
               </div>
             </li>
           ))}
