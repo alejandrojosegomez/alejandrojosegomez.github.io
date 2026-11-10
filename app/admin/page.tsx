@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { logout } from "./actions";
 import { AnimatedNumber } from "./animated-number";
+import { getClaudeUsage, isClaudeConfigured, type ClaudeUsage } from "./anthropic";
 import { getHealth, getUpdates, getVisitors, type Bar, type Check, type Result, type Updates, type Visitors } from "./data";
 import { LoginForm } from "./login-form";
 import { RefreshButton } from "./refresh-button";
@@ -87,7 +88,12 @@ type Connection = {
 
 async function Dashboard({ days }: { days: number }) {
   const now = new Date();
-  const [visitors, updates, health] = await Promise.all([getVisitors(days, now), getUpdates(days, now), getHealth()]);
+  const [visitors, updates, health, claude] = await Promise.all([
+    getVisitors(days, now),
+    getUpdates(days, now),
+    getHealth(),
+    isClaudeConfigured() ? getClaudeUsage(days, now) : Promise.resolve(null),
+  ]);
 
   const find = (n: string) => health.find((h) => h.name === n);
   const connections: Connection[] = [
@@ -236,23 +242,22 @@ async function Dashboard({ days }: { days: number }) {
         <Card className="lg:col-span-3" title="Latest updates" subtitle="Newest first · build time on the right">
           {updates.ok ? <LatestUpdates u={updates.data} /> : <Unavailable r={updates} kind="vercel" />}
         </Card>
-        <Card className="lg:col-span-2" title="Claude usage" subtitle="Tokens spent on updates">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 shrink-0 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
-              <Icon name="spark" className="w-5 h-5" />
+        <Card className="lg:col-span-2" title="Claude API" subtitle={`Usage and cost · last ${days} days · read-only`}>
+          {claude === null ? (
+            <ClaudeNotConnected />
+          ) : claude.ok ? (
+            <ClaudeView c={claude.data} />
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+              {/not an Admin API key/.test(claude.error) ? (
+                <>The key in <b className="text-slate-900">ANTHROPIC_ADMIN_KEY</b> is not an Admin key. Create one in Claude Console → Settings → Admin keys.</>
+              ) : /authentication|permission|unauthorized/i.test(claude.error) ? (
+                <>Claude Console rejected the key (<code className="text-slate-900">{claude.error}</code>). It may have been deleted. Create a new Admin key and update it in Vercel.</>
+              ) : (
+                <>Couldn&apos;t load Claude usage: <code className="text-slate-900">{claude.error}</code></>
+              )}
             </div>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Claude&apos;s token usage can&apos;t be read by websites. Your 5-hour session and weekly limits are in Claude settings.
-            </p>
-          </div>
-          <a
-            href="https://claude.ai/settings/usage"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition"
-          >
-            Open Settings → Usage ↗
-          </a>
+          )}
         </Card>
       </section>
     </main>
@@ -358,6 +363,86 @@ function VisitorsView({ v }: { v: Visitors }) {
       </div>
     </div>
   );
+}
+
+function ClaudeView({ c }: { c: ClaudeUsage }) {
+  const max = Math.max(1, ...c.perDay.map((d) => d.tokens));
+  return (
+    <div>
+      <div className="flex items-end justify-between mb-4">
+        <div>
+          <div className="text-3xl font-extrabold text-slate-900">
+            ${c.totalCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div className="text-xs text-slate-500">spent on the API</div>
+        </div>
+        <div className="text-right text-xs text-slate-500">
+          <div><b className="text-slate-900">{compact(c.totalTokens)}</b> tokens</div>
+          <div><b className="text-slate-900">{compact(c.outputTokens)}</b> output</div>
+        </div>
+      </div>
+
+      <div className="flex items-end gap-[3px] h-16">
+        {c.perDay.map((d, i) => (
+          <div
+            key={d.label}
+            title={`${shortDate(d.label)}: ${d.tokens.toLocaleString("en-US")} tokens · $${d.cost.toFixed(2)}`}
+            className={`grow-y smooth-h flex-1 rounded-t-[3px] ${d.tokens ? "bg-orange-400 hover:bg-orange-500" : "bg-slate-200"}`}
+            style={{ height: `${d.tokens ? Math.max(8, (d.tokens / max) * 100) : 6}%`, animationDelay: `${i * 18}ms` }}
+          />
+        ))}
+      </div>
+      <div className="flex justify-between mt-1.5 text-[10px] text-slate-400">
+        <span>{shortDate(c.perDay[0]?.label ?? "")}</span>
+        <span>Today</span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 mt-4 text-center">
+        {[
+          ["Input", c.inputTokens],
+          ["Cached", c.cachedTokens],
+          ["Output", c.outputTokens],
+        ].map(([label, value]) => (
+          <div key={label as string} className="rounded-xl bg-slate-50 border border-slate-100 py-2">
+            <div className="text-sm font-bold text-slate-900">{compact(value as number)}</div>
+            <div className="text-[10px] text-slate-500">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5">
+        <HBars title="By model (tokens)" bars={c.byModel} color="bg-orange-400" />
+      </div>
+      <p className="mt-4 text-[11px] text-slate-400">Claude Console API only, updates with a short delay. Your claude.ai plan limits are not included.</p>
+    </div>
+  );
+}
+
+function ClaudeNotConnected() {
+  return (
+    <>
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 shrink-0 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
+          <Icon name="spark" className="w-5 h-5" />
+        </div>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Not connected. Add an Admin key as <b className="text-slate-900">ANTHROPIC_ADMIN_KEY</b> (Sensitive) in Vercel to see API usage and cost here.
+        </p>
+      </div>
+      <a
+        href="https://claude.ai/settings/usage"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition"
+      >
+        Open claude.ai usage ↗
+      </a>
+    </>
+  );
+}
+
+function compact(n: number): string {
+  return n.toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 1 });
 }
 
 function LatestUpdates({ u }: { u: Updates }) {
