@@ -37,3 +37,21 @@ The URL stays the same.
 ## Turning it off
 Deploy → Manage deployments → Archive. The website will show a "message not sent" error
 with your email as a fallback.
+
+
+## Update: admin sign-in codes (v3)
+
+The script now also sends the 6-digit sign-in code for the private admin panel
+(`/admin`) and an alert email if sign-in gets locked after 5 failed attempts.
+Codes always go to the `ADMIN_EMAIL` **script property** (kept private in
+Apps Script, not in this repo) — the website can't change the recipient.
+
+To update an existing deployment (keeps the same URL):
+
+1. Open the Apps Script project → replace all of `Code.gs` with the new file → **Save**.
+2. **Project Settings** (gear icon) → **Script properties** → **Add script property**:
+   `ADMIN_EMAIL` = the email that should receive the codes → **Save**.
+3. **Deploy → Manage deployments** → pencil icon → **Version: New version** → **Deploy**.
+4. If Google asks for permissions again, allow them.
+
+Do this **before** the admin sign-in update goes live, or the panel can't send codes.
