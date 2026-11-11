@@ -246,7 +246,7 @@ function CodeCard({
       <p className="text-center text-[13px] text-slate-500 mt-1 mb-5 leading-relaxed">
         We sent a 6-digit code to
         <br />
-        <b className="text-slate-900">your school email</b>
+        <b className="text-slate-900">your email</b>
       </p>
       <div className="flex gap-2 justify-center">
         {digits.map((d, i) => (
