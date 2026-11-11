@@ -537,7 +537,22 @@ function ShieldSvg() {
 
 function DeniedScreen({ info, onRetry }: { info: Denied; onRetry: () => void }) {
   const [time] = useState(() => new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
+  const [now, setNow] = useState(() => Date.now());
   const label: Record<Stage, string> = { password: "password", code: "email code", face: "Face ID" };
+
+  // Cuenta regresiva del bloqueo; al llegar a 0 se desbloquea sola
+  useEffect(() => {
+    if (!info.locked) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [info.locked]);
+
+  const remaining = info.locked ? Math.max(0, Math.ceil((info.until - now) / 1000)) : 0;
+  const stillLocked = info.locked && remaining > 0;
+  const unlocked = info.locked && remaining === 0;
+  const mm = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`;
+  const unlockAt = info.until ? new Date(info.until).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+
   return (
     <div className="ag-overlay ag-denied ag-fade" role="alert">
       <div className="text-center px-6">
@@ -560,19 +575,33 @@ function DeniedScreen({ info, onRetry }: { info: Denied; onRetry: () => void }) 
         </div>
         <h2 className="mt-4 text-[26px] font-extrabold text-red-700 tracking-tight">Access denied</h2>
         <p className="text-sm text-red-900 mt-1.5">{info.reason}</p>
-        {info.locked ? (
-          <p className="inline-block mt-3 text-xs font-semibold text-white bg-red-600 rounded-full px-3 py-1">Locked for 15 minutes</p>
-        ) : (
+
+        {stillLocked && (
+          <>
+            <p className="inline-block mt-3 text-xs font-semibold text-white bg-red-600 rounded-full px-3 py-1">
+              Locked · unlocks in <span className="tabular-nums">{mm}</span>
+            </p>
+            <p className="mt-1.5 text-[11px] text-red-800">You can try again at {unlockAt}.</p>
+          </>
+        )}
+        {unlocked && (
+          <p className="inline-block mt-3 text-xs font-semibold text-emerald-800 bg-emerald-100 rounded-full px-3 py-1">
+            Unlocked · you can try again now
+          </p>
+        )}
+        {!info.locked && (
           <p className="mt-2.5 text-xs font-semibold text-red-800">
             {info.left} attempt{info.left === 1 ? "" : "s"} left
           </p>
         )}
+
         <p className="mt-3.5 mx-auto max-w-[290px] text-[11px] leading-relaxed text-red-700/80">
-          Failed {label[info.stage]} attempt at {time}.
-          {info.locked ? " An alert was sent to your email." : " If this wasn't you, change your admin password."}
+          {info.fresh ? `Failed ${label[info.stage]} attempt at ${time}.` : `Checked at ${time}.`}
+          {info.locked && info.alerted ? " An alert was sent to your email." : ""}
+          {!info.locked ? " If this wasn't you, change your admin password." : ""}
         </p>
-        <button type="button" onClick={onRetry} disabled={info.locked} className="ag-btn ag-btn-red mt-5">
-          {info.locked ? "Locked" : info.restart ? "Start again" : "Try again"}
+        <button type="button" onClick={onRetry} disabled={stillLocked} className="ag-btn ag-btn-red mt-5">
+          {stillLocked ? "Locked" : info.restart ? "Start again" : "Try again"}
         </button>
       </div>
     </div>

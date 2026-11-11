@@ -93,19 +93,39 @@ export async function clientInfo(): Promise<{ ip: string; userAgent: string }> {
 const WINDOW_MS = 15 * 60 * 1000;
 export const MAX_TRIES = 5;
 export const LOCK_MINUTES = 15;
-const attempts = new Map<string, number[]>();
+// Por IP: fallos recientes y, si se bloqueó, hasta cuándo.
+// El bloqueo dura exactamente LOCK_MINUTES desde el 5.º fallo; al terminar, se empieza de cero.
+type Record_ = { fails: number[]; lockUntil: number };
+const attempts = new Map<string, Record_>();
+
+function current(ip: string, now: number): Record_ {
+  let r = attempts.get(ip) ?? { fails: [], lockUntil: 0 };
+  if (r.lockUntil && now >= r.lockUntil) r = { fails: [], lockUntil: 0 }; // el bloqueo terminó
+  r.fails = r.fails.filter((t) => now - t < WINDOW_MS);
+  attempts.set(ip, r);
+  return r;
+}
+
+/** Hora (ms) en que termina el bloqueo, o 0 si no está bloqueado. */
+export function lockedUntil(ip: string): number {
+  const now = Date.now();
+  const r = current(ip, now);
+  return r.lockUntil > now ? r.lockUntil : 0;
+}
 
 export function tooManyAttempts(ip: string): boolean {
-  const now = Date.now();
-  const recent = (attempts.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-  attempts.set(ip, recent);
-  return recent.length >= MAX_TRIES;
+  return lockedUntil(ip) > 0;
 }
 
 export function recordFailedAttempt(ip: string): void {
-  const list = attempts.get(ip) ?? [];
-  list.push(Date.now());
-  attempts.set(ip, list);
+  const now = Date.now();
+  const r = current(ip, now);
+  if (r.lockUntil > now) return; // durante el bloqueo no se suma tiempo
+  r.fails.push(now);
+  if (r.fails.length >= MAX_TRIES) {
+    r.lockUntil = now + LOCK_MINUTES * 60 * 1000;
+    r.fails = [];
+  }
 }
 
 export function clearAttempts(ip: string): void {
@@ -114,6 +134,6 @@ export function clearAttempts(ip: string): void {
 
 export function attemptsLeft(ip: string): number {
   const now = Date.now();
-  const recent = (attempts.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-  return Math.max(0, MAX_TRIES - recent.length);
+  const r = current(ip, now);
+  return r.lockUntil > now ? 0 : Math.max(0, MAX_TRIES - r.fails.length);
 }

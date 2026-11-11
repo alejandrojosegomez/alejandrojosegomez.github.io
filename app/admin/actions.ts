@@ -22,6 +22,7 @@ import {
   clientInfo,
   isAdmin,
   isConfigured,
+  lockedUntil,
   recordFailedAttempt,
   startSession,
   tooManyAttempts,
@@ -52,7 +53,17 @@ export type LoginResult =
   | { status: "code"; resendIn: number; expiresIn: number }
   | { status: "face"; options: PublicKeyCredentialRequestOptionsJSON }
   | { status: "granted" }
-  | { status: "denied"; stage: Stage; reason: string; left: number; locked: boolean; restart: boolean }
+  | {
+      status: "denied";
+      stage: Stage;
+      reason: string;
+      left: number;
+      locked: boolean;
+      restart: boolean;
+      until: number; // fin del bloqueo (ms), 0 si no hay bloqueo
+      fresh: boolean; // true = este intento falló; false = ya estaba bloqueado
+      alerted: boolean;
+    }
   | { status: "error"; stage: Stage; message: string };
 
 const slow = () => new Promise((r) => setTimeout(r, 600)); // frena la fuerza bruta
@@ -60,26 +71,32 @@ const slow = () => new Promise((r) => setTimeout(r, 600)); // frena la fuerza br
 async function denied(stage: Stage, reason: string, restart = false): Promise<LoginResult> {
   const { ip, userAgent } = await clientInfo();
   recordFailedAttempt(ip);
+  const until = lockedUntil(ip);
+  const locked = until > 0;
   const left = attemptsLeft(ip);
-  const locked = left === 0;
+  let alerted = false;
   if (locked) {
     await clearPending();
-    await sendToScript({ action: "admin_alert", reason, ip, userAgent });
+    alerted = await sendToScript({ action: "admin_alert", reason, ip, userAgent });
   } else if (restart) {
     await clearPending();
   }
   await slow();
-  return { status: "denied", stage, reason, left, locked, restart: restart || locked };
+  return { status: "denied", stage, reason, left, locked, restart: restart || locked, until, fresh: true, alerted };
 }
 
 async function lockedResult(stage: Stage): Promise<LoginResult> {
+  const { ip } = await clientInfo();
   return {
     status: "denied",
     stage,
-    reason: `Too many failed attempts. Try again in ${LOCK_MINUTES} minutes.`,
+    reason: "Sign-in is locked after too many failed attempts.",
     left: 0,
     locked: true,
     restart: true,
+    until: lockedUntil(ip) || Date.now() + LOCK_MINUTES * 60 * 1000,
+    fresh: false,
+    alerted: false,
   };
 }
 
