@@ -37,19 +37,24 @@ export function checkPassword(input: string): boolean {
   return safeEqual(input, real);
 }
 
+// Versión de la sesión. Las sesiones de antes del login de 3 pasos (solo contraseña)
+// no tienen esta marca y ya no sirven. Subir el número cierra todas las sesiones abiertas.
+const SESSION_VERSION = "s2";
+
 export function createSessionToken(now = Date.now()): string | null {
   const key = secret();
   if (!key) return null;
   const exp = String(now + SESSION_HOURS * 60 * 60 * 1000);
-  return `${exp}.${sign(exp, key)}`;
+  return `${SESSION_VERSION}.${exp}.${sign(`${SESSION_VERSION}|${exp}`, key)}`;
 }
 
 export function verifySessionToken(token: string | undefined, now = Date.now()): boolean {
   const key = secret();
   if (!key || !token) return false;
-  const [exp, sig] = token.split(".");
+  const [version, exp, sig, extra] = token.split(".");
+  if (extra !== undefined || version !== SESSION_VERSION) return false;
   if (!exp || !sig || !/^\d+$/.test(exp)) return false;
-  if (!safeEqual(sig, sign(exp, key))) return false;
+  if (!safeEqual(sig, sign(`${SESSION_VERSION}|${exp}`, key))) return false;
   return Number(exp) > now;
 }
 
@@ -68,7 +73,9 @@ export async function startSession(): Promise<boolean> {
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    // "lax": la sesión también abre el panel cuando llegas desde un enlace externo.
+    // Las server actions de Next.js ya bloquean peticiones de otros sitios (CSRF).
+    sameSite: "lax",
     path: "/",
     maxAge: SESSION_HOURS * 60 * 60,
   });
