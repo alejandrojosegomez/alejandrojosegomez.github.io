@@ -12,7 +12,16 @@
  *   3. sends you an email notification (not for spam)
  *
  * Checking "Replied" or "Read" updates the Status automatically.
+ *
+ * v3 also sends the admin panel's sign-in codes (2-step login) and lockout
+ * alerts. They only ever go to the ADMIN_EMAIL script property (Project
+ * Settings → Script properties), which stays private. The website can't change
+ * the recipient.
  */
+
+function adminEmail_() {
+  return PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL') || '';
+}
 
 const FOLDER_NAME = 'Website Messages';
 const LOG_NAME = 'Message Log';
@@ -77,6 +86,10 @@ function doPost(e) {
       return json_({ ok: false, error: 'unauthorized' });
     }
 
+    // Admin panel (2-step login)
+    if (data.action === 'admin_code') return json_(sendAdminCode_(data));
+    if (data.action === 'admin_alert') return json_(sendAdminAlert_(data));
+
     const name = String(data.name || '').slice(0, 100);
     const email = String(data.email || '').replace(/["<>\s]/g, '').slice(0, 200);
     const title = String(data.title || '').slice(0, 150);
@@ -135,6 +148,51 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin panel: sign-in codes and alerts                               */
+/* ------------------------------------------------------------------ */
+
+function sendAdminCode_(data) {
+  const code = String(data.code || '');
+  if (!/^\d{6}$/.test(code)) return { ok: false, error: 'bad_code' };
+  const to = adminEmail_();
+  if (!to) return { ok: false, error: 'no_admin_email' };
+  const tz = Session.getScriptTimeZone();
+  const when = Utilities.formatDate(new Date(), tz, 'MMM d, yyyy h:mm a');
+  MailApp.sendEmail({
+    to: to,
+    subject: code + ' is your AG Admin sign-in code',
+    body:
+      'Your sign-in code for the alejandrogomez.me admin panel:\n\n' +
+      '    ' + code + '\n\n' +
+      'It expires in 5 minutes and works only once.\n\n' +
+      'Requested: ' + when + '\n' +
+      'Device: ' + String(data.userAgent || 'unknown').slice(0, 160) + '\n' +
+      'IP: ' + String(data.ip || 'unknown').slice(0, 60) + '\n\n' +
+      'If this wasn\'t you, someone knows your admin password. Change ADMIN_PASSWORD in Vercel right away.',
+  });
+  return { ok: true };
+}
+
+function sendAdminAlert_(data) {
+  const to = adminEmail_();
+  if (!to) return { ok: false, error: 'no_admin_email' };
+  const tz = Session.getScriptTimeZone();
+  const when = Utilities.formatDate(new Date(), tz, 'MMM d, yyyy h:mm a');
+  MailApp.sendEmail({
+    to: to,
+    subject: '⚠️ AG Admin: sign-in locked after failed attempts',
+    body:
+      'The admin panel on alejandrogomez.me was locked for 15 minutes after too many failed sign-in attempts.\n\n' +
+      'Last reason: ' + String(data.reason || 'unknown').slice(0, 120) + '\n' +
+      'Time: ' + when + '\n' +
+      'Device: ' + String(data.userAgent || 'unknown').slice(0, 160) + '\n' +
+      'IP: ' + String(data.ip || 'unknown').slice(0, 60) + '\n\n' +
+      'If this wasn\'t you, change ADMIN_PASSWORD in Vercel.',
+  });
+  return { ok: true };
 }
 
 /* ------------------------------------------------------------------ */

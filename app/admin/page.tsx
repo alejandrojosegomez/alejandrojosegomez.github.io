@@ -5,7 +5,9 @@ import { logout } from "./actions";
 import { AnimatedNumber } from "./animated-number";
 import { getHealth, getUpdates, getVisitors, type Bar, type Check, type Result, type Updates, type Visitors } from "./data";
 import { LoginForm } from "./login-form";
+import { PasskeySetup } from "./passkey-setup";
 import { RefreshButton } from "./refresh-button";
+import { passkeysForThisSite } from "./twofactor";
 import { isAdmin, isConfigured } from "./session";
 
 export const metadata: Metadata = {
@@ -87,7 +89,12 @@ type Connection = {
 
 async function Dashboard({ days }: { days: number }) {
   const now = new Date();
-  const [visitors, updates, health] = await Promise.all([getVisitors(days, now), getUpdates(days, now), getHealth()]);
+  const [visitors, updates, health, passkeys] = await Promise.all([
+    getVisitors(days, now),
+    getUpdates(days, now),
+    getHealth(),
+    passkeysForThisSite(),
+  ]);
 
   const find = (n: string) => health.find((h) => h.name === n);
   const connections: Connection[] = [
@@ -255,6 +262,11 @@ async function Dashboard({ days }: { days: number }) {
           </a>
         </Card>
       </section>
+
+      {/* Sign-in security */}
+      <Card title="Sign-in security" subtitle="Password → email code → Face ID">
+        <PasskeySetup count={passkeys.length} />
+      </Card>
     </main>
   );
 }
